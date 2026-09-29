@@ -53,6 +53,8 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 | mongo_down | PASS | 22.3 | 10/10 |
 | duplicate_start | PASS | 21.4 | 7/7 |
 
+`approval_worker_restart` was added after that run. It was run on its own on 2026-09-29 (`gax demo run approval_worker_restart`): PASS, 19.5 s, 11/11. Log: `.gax/demo-results/approval_worker_restart.log`.
+
 ## 1. worker_kill
 
 - **Trigger:** 8 s latency fault on `restart_consumer`; staging restart incident; wait until the ledger shows attempt 1 `PENDING`, wait 2 s more so the request is in flight, `taskkill /F` the real worker PID (not the launcher), start a new worker.
@@ -103,7 +105,7 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 
 - **Trigger:** staging `pause_pipeline` (REQUIRE_APPROVAL) with a 5 s approval timeout; then a reject path and an approve path.
 - **Expected:** APPROVAL_TIMEOUT, nothing executed, late approval rejected; REJECTED path executes nothing; APPROVED path executes once.
-- **Survives:** the approval wait is a durable timer in Temporal, so it is expected to outlive worker restarts (not demonstrated; see NOT VERIFIED).
+- **Survives:** the approval wait is a durable timer in Temporal. A worker crash during the wait is demonstrated in 12.
 - **Observed:** timeout: `APPROVAL_TIMEOUT`, audit approval `{decision: TIMEOUT, timeout_seconds: 5}`, scheduled `[propose_action, evaluate_policy, record_audit]`, counters `{}`; late approve → `RPCError: workflow execution already completed`. Reject: `REJECTED` by `demo-operator`, `pause_pipeline=0`, not paused. Approve: `VERIFIED`, ledger `[APPLIED]`, `pause_pipeline=1`, paused.
 
 ## 8. llm_malformed
@@ -118,7 +120,7 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 
 - **Trigger:** direct `embeddings` calls that bypass the client limiter until the first 429, then an incident with real retrieval (Voyage embed + rerank against `ai.mongodb.com`) and an injected proposal.
 - **Expected:** real 429s in the worker log, backoff, retrieval succeeding. No 429 would be NOT REPRODUCED.
-- **Retried:** 429 inside `VoyageClient` (2/4/8/16/32 s, 6 attempts) with a sliding-window limiter (3 RPM / 10K TPM); then the activity retry. **Not retried:** 401/403/other 4xx. If retrieval fails anyway, the workflow records `retrieval_error` and proceeds without context, because retrieval is supporting context only.
+- **Retried:** 429 inside `VoyageClient` (2/4/8/16/32 s, 6 attempts) with a sliding-window limiter (3 RPM / 10K TPM); then the activity retry. **Not retried:** 401/403/other 4xx. If retrieval fails anyway, the workflow records `retrieval_error` and proceeds without context, because retrieval is supporting context only. That path is covered by `tests/integration/test_remediation_workflow.py::test_retrieval_error_proposes_with_empty_context_and_policy_still_gates`: `retrieve_context` raises `RetrievalNotReady` (non-retryable by the retry policy, one attempt, `RETRY_STATE_NON_RETRYABLE_FAILURE`), the audit has `retrieval_error` and `context: []`, `ProposerTestDouble` receives an empty context, policy returns ALLOW (`policy-v1`), and the run ends VERIFIED.
 - **Observed:** direct probes `[200, 200, 200, 429]`. Worker: `voyage 429 path=embeddings` attempts 1, 2, 3 with backoff 2.0, 4.0, 8.0 s (13:33:48, :51, :55). The 4th attempt was held by the client limiter, which counts the 429'd attempts, until 60 s after the first 429, then `embeddings 200` at 13:34:49 and `rerank 200` at 13:34:51. Five chunks retrieved (top: `consumer-lag-no-active-members#symptoms`, rerank 0.8359), no `retrieval_error`; VERIFIED.
 
 ## 10. mongo_down
@@ -136,6 +138,14 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 - **Mechanism:** workflow id = incident id with `ALLOW_DUPLICATE_FAILED_ONLY`; Temporal rejects a start while a run is open and after a successful close.
 - **Observed:** first start exit 0; while running exit 2 `rejected: incident DEMO-DUPLICATE-START-20260929133516 is running or already completed`; after completion the same, exit 2; latest run id equals the first; ledger `[APPLIED]`, `restart_consumer=1`, `restart_count` 1; VERIFIED.
 
+## 12. approval_worker_restart
+
+- **Trigger:** staging `pause_pipeline` (REQUIRE_APPROVAL, 900 s timeout); wait for `AWAITING_APPROVAL`; `taskkill /F` the real worker PID (not the launcher); start a new worker; send the `approve` Update.
+- **Expected:** the workflow stays RUNNING with no worker; the new worker replays history, rebuilds `AWAITING_APPROVAL`, and its validator accepts the Update; nothing is re-proposed or re-evaluated; pause applied once; audit record present; VERIFIED.
+- **Survives:** the workflow, its completed `propose_action` / `evaluate_policy` results and the approval timer (Temporal server). The in-memory workflow state on the dead worker is lost and rebuilt by replay.
+- **Retried:** nothing. No activity was in flight at the kill.
+- **Observed:** killed real pid 31024 (launcher 8128) at `AWAITING_APPROVAL`, fleet counters `{}`. `describe` status RUNNING with no worker. New worker pid 24392. `approve` returned `APPROVED` 18.3 s after the kill (this includes the new worker's startup). History: `WorkflowExecutionUpdateAccepted` (event 23, `approve`) follows a `WorkflowTaskStarted` with identity `24392@Bharath`, so the new worker accepted it. Scheduled `[propose_action, evaluate_policy, snapshot_state, execute_action, verify_outcome, record_audit]` (each once). Ledger `[APPLIED]`; counters `{get_state: 2, pause_pipeline: 1}`; paused false → true. Audit `DEMO-APPROVAL-WORKER-RESTART-20260929155333:01a0ef5f-93aa-7d85-b7da-5206a69f0fb9`, status VERIFIED, approval `{decision: APPROVED, by: demo-operator}`. VERIFIED.
+
 ## Findings
 
 1. **Temporal drops oversized activity failures.** In the first response_lost run, history showed lastFailure `"Failure exceeds size limit."` instead of the transport error. The server (string found in `temporal.exe`) replaces a retry's lastFailure when the serialized failure is too large. The Python SDK serializes the implicit `__context__` chain, so the httpcore → httpx → `ApplicationError` chain (three stack traces) was too large. The same happened with pymongo `ServerSelectionTimeoutError` in mongo_down. Fix: transport errors are raised `from None`, and Mongo errors in fleet/audit activities become a compact `MongoUnavailable`. Both demos now show the real cause. The integration test with the mock transport did not reproduce the truncation (shorter chain); only the live demo did.
@@ -149,6 +159,4 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 - Mongo down during `execute_action` after the fleet commit, or during `record_audit`; only the pre-execute window was exercised.
 - Mongo down longer than the fleet retry budget (expected `FAILED`, not run).
 - Worker kill before the request reaches fleet-api (expected attempt 2 `APPLIED`); the demo kills after it is in flight.
-- Worker restart during an approval wait (the timer and pending Update should survive; no demo restarts the worker in that window).
-- Retrieval failure that proceeds without context (`retrieval_error` path in `src/gax/workflows.py`); no test or demo forces it.
 - Temporal server crash; Keycard (all credential demos use the LOCAL-ONLY broker).

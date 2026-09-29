@@ -37,7 +37,7 @@ Temporal history is the authority on execution. MongoDB holds retrieval data, do
 
 | Component | Role | Failure it protects against | Proven by |
 |---|---|---|---|
-| Temporal | Durable workflow, retries, approval timer | Worker crash mid-action; approval waits with no deadline; duplicate runs for one incident | demos `worker_kill`, `approval_timeout`, `duplicate_start`; `test_approval_timeout`, `test_duplicate_start_rejected` |
+| Temporal | Durable workflow, retries, approval timer | Worker crash mid-action or during an approval wait; approval waits with no deadline; duplicate runs for one incident | demos `worker_kill`, `approval_worker_restart`, `approval_timeout`, `duplicate_start`; `test_approval_timeout`, `test_duplicate_start_rejected` |
 | MongoDB (atlas-local) | Vector index, action ledger, audit, fleet-api state and idempotency store | Losing per-attempt evidence (Temporal history keeps only the final attempt); no audit trail | demos `worker_kill` (ledger `[PENDING, REPLAYED]`), `mongo_down`; `test_ingest_skips_unchanged_and_search_finds_runbook` |
 | Voyage | Embeddings and rerank for runbook retrieval | Proposer working without relevant runbooks; free-tier 429s | demo `voyage_429`; `test_429_backs_off_exponentially_then_succeeds`, `test_limiter_enforces_rpm`; rerank ordering in [m1-findings](docs/m1-findings.md) |
 | Claude | Proposes one `ActionProposal` (Pydantic-validated structured output) | Free-text or out-of-schema actions reaching execution | demo `llm_malformed`; `test_malformed_proposal_needs_human_after_three_bounded_attempts`, `test_malformed_proposal` |
@@ -47,7 +47,7 @@ Temporal history is the authority on execution. MongoDB holds retrieval data, do
 
 ## Quickstart
 
-Prerequisites: Windows with PowerShell, Python 3.12 with a venv at `.venv`, Docker Desktop, Temporal CLI. `start-stack.ps1` looks for the CLI at `C:\Users\bhara\tools\temporal\temporal.exe` unless `TEMPORAL_CLI` is set.
+Prerequisites: Windows with PowerShell, Python 3.12 with a venv at `.venv`, Docker Desktop, Temporal CLI (set `TEMPORAL_CLI` or put `temporal` on PATH).
 
 `.env` (copy `.env.example`; values are never committed):
 
@@ -70,14 +70,14 @@ Prerequisites: Windows with PowerShell, Python 3.12 with a venv at `.venv`, Dock
 
 - `start-stack.ps1` starts atlas-local (Docker), the Temporal dev server, fleet-api and, with `-WithWorker`, the worker. Temporal UI: http://localhost:8233.
 - A second `ingest` embeds nothing: unchanged chunks are skipped by content hash.
-- `demo run all` runs the eleven failure demos. The demos inject their proposals and skip retrieval, so they make no LLM or Voyage calls. The exception is `voyage_429`, which calls Voyage. Results go to `.gax/demo-results/`.
+- `demo run all` runs the twelve failure demos. The demos inject their proposals and skip retrieval, so they make no LLM or Voyage calls. The exception is `voyage_429`, which calls Voyage. Results go to `.gax/demo-results/`.
 - `stop-stack.ps1` stops the worker, fleet-api, Temporal and the container.
 
 Other commands: `gax search "<query>"`, `gax status <id>`, `gax approve|reject <id> --by <name>`, `gax broker revoke|restore|transient --action <action>`, `gax fleet faults|counters|reset|state`, `gax demo list`. `scripts\start-worker.ps1` and `scripts\stop-worker.ps1` manage the worker on its own (log `.gax\logs\worker.log`, launcher and real PID in `.gax\pids\worker.pid`). Tests: `.venv\Scripts\python.exe -m pytest`. The integration tests need atlas-local on `localhost:27017`.
 
 ## Failure matrix
 
-Each row is a demo that runs against the live stack and checks its evidence (Temporal history, ledger, fleet-api counters, fleet state, worker log). Every demo also scans its workflow histories and worker log for credential material. Full details are in [docs/failure-semantics.md](docs/failure-semantics.md). The observed results below come from the recorded `gax demo run all` on 2026-09-29, where all 11 demos passed.
+Each row is a demo that runs against the live stack and checks its evidence (Temporal history, ledger, fleet-api counters, fleet state, worker log). Every demo also scans its workflow histories and worker log for credential material. Full details are in [docs/failure-semantics.md](docs/failure-semantics.md). The observed results below come from the recorded `gax demo run all` on 2026-09-29, where all 11 demos in it passed. `approval_worker_restart` was added afterwards and run on its own the same day (PASS, 11/11).
 
 | Demo | What breaks | What the system does | Observed |
 |---|---|---|---|
@@ -88,6 +88,7 @@ Each row is a demo that runs against the live stack and checks its evidence (Tem
 | `credential_transient` | Broker unavailable twice | Retryable; credential requested fresh on every attempt | ledger `[CREDENTIAL_UNAVAILABLE ×2, APPLIED]`, 1 restart request |
 | `policy_deny` | LLM-style proposal: prod `reset_consumer_offset` | Policy DENY before any fleet call | DENIED, fleet counters `{}`, prod offset 1000 → 1000 |
 | `approval_timeout` | Nobody approves `pause_pipeline` | Durable timer ends APPROVAL_TIMEOUT; late approval rejected | nothing executed; reject path executes nothing; approve path executes once |
+| `approval_worker_restart` | Worker process hard-killed while `pause_pipeline` awaits approval | A new worker replays history and accepts the approval Update | Update accepted on the new worker's pid, nothing re-proposed, ledger `[APPLIED]`, `pause_pipeline=1`, audit record, VERIFIED |
 | `llm_malformed` | Proposal with action `drop_topic` | Pydantic validation fails, run ends NEEDS_HUMAN | 0 fleet requests |
 | `voyage_429` | Voyage free-tier rate limit exhausted | Client backoff 2/4/8 s plus a sliding-window limiter | real 429s, then embed and rerank 200, run VERIFIED |
 | `mongo_down` | atlas-local stopped after approval | Mongo errors become compact retryable `MongoUnavailable` | `snapshot_state` attempt 3, then VERIFIED with an audit record |
@@ -106,10 +107,10 @@ Each row is a demo that runs against the live stack and checks its evidence (Tem
 - **Single-node atlas-local and the Temporal dev server** (SQLite file under `.gax/`). There is no replication, HA or persistence tuning.
 - **fleet-api `/admin/*` endpoints are unauthenticated.** They exist for fault injection and resets, and only listen on `127.0.0.1`.
 - **The corpus is synthetic.** It has 14 invented runbooks and 54 chunks ([corpus/README.md](corpus/README.md)).
-- **Failed retrieval does not stop the run, by design.** The workflow records `retrieval_error` and proposes without context. Policy still gates the action. This path is in the code (`src/gax/workflows.py`) but no test or demo exercises it.
+- **Failed retrieval does not stop the run, by design.** The workflow records `retrieval_error` and proposes without context. Policy still gates the action. An integration test covers this with a test double (`test_retrieval_error_proposes_with_empty_context_and_policy_still_gates`); no live demo forces a retrieval failure.
 - **The idempotency key is scoped to the incident id, not the run.** Rerunning a failed incident id whose action already committed replays the stored response instead of applying again.
 - **atlas-local exits with code 137 on `docker stop`**, even though the stop returns in about 3 s. The cause was not investigated.
-- **Not verified** (from the findings docs): malformed output from the real model (structured outputs constrain decoding, so the bounded-retry path is covered by a test double); Mongo down during or after `execute_action`'s commit, or during `record_audit`; Mongo down for longer than the retry budget; a worker kill before the request reaches fleet-api; a retrieval failure that proceeds without context; a durable approval wait surviving a worker restart; a Temporal server crash; activity heartbeating; anything Keycard-related.
+- **Not verified** (from the findings docs): malformed output from the real model (structured outputs constrain decoding, so the bounded-retry path is covered by a test double); Mongo down during or after `execute_action`'s commit, or during `record_audit`; Mongo down for longer than the retry budget; a worker kill before the request reaches fleet-api; a Temporal server crash; activity heartbeating; anything Keycard-related.
 
 For production I would put the credential layer on Keycard (or another workload-identity issuer) with fleet-api validating issuer-signed tokens. I would also run a replicated MongoDB and a real Temporal cluster, authenticate the admin endpoints (or remove them), and scope idempotency keys per run where re-execution after a failed run is intended.
 
@@ -122,7 +123,7 @@ This project was inspired by concepts from [mongodb-developer/mdb-temporal-keyca
 - Some actions need **human approval** with a durable timeout.
 - **Side effects are idempotent**, keyed per incident, with a per-attempt ledger.
 - **Outcomes are verified** against the target system's state.
-- Eleven **failure demos** check their own evidence.
+- Twelve **failure demos** check their own evidence.
 
 ## Status
 
