@@ -89,7 +89,8 @@ def test_summary_table():
 
 def test_every_failure_matrix_row_has_a_demo():
     assert list(DEMOS) == ["worker_kill", "fleet_5xx", "response_lost", "credential_denied", "credential_transient", "policy_deny",
-                           "approval_timeout", "llm_malformed", "voyage_429", "mongo_down", "duplicate_start"]
+                           "approval_timeout", "approval_worker_restart", "llm_malformed", "voyage_429", "mongo_down",
+                           "duplicate_start"]
     assert all(m.TITLE and callable(m.run) for m in DEMOS.values())
 
 
