@@ -1,0 +1,8 @@
+{
+  "action": "reset_consumer_offset",
+  "target": "orders-consumer",
+  "environment": "prod",
+  "params": {"replicas": null},
+  "justification": "Poison message blocks partition 3; skip it by resetting the committed offset.",
+  "cited_chunk_ids": ["poison-message-offset-skip#when-to-use"]
+}
