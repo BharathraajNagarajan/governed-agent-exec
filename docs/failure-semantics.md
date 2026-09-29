@@ -103,7 +103,7 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 
 - **Trigger:** staging `pause_pipeline` (REQUIRE_APPROVAL) with a 5 s approval timeout; then a reject path and an approve path.
 - **Expected:** APPROVAL_TIMEOUT, nothing executed, late approval rejected; REJECTED path executes nothing; APPROVED path executes once.
-- **Survives:** the approval wait is a durable timer in Temporal, so it outlives worker restarts.
+- **Survives:** the approval wait is a durable timer in Temporal, so it is expected to outlive worker restarts (not demonstrated; see NOT VERIFIED).
 - **Observed:** timeout: `APPROVAL_TIMEOUT`, audit approval `{decision: TIMEOUT, timeout_seconds: 5}`, scheduled `[propose_action, evaluate_policy, record_audit]`, counters `{}`; late approve → `RPCError: workflow execution already completed`. Reject: `REJECTED` by `demo-operator`, `pause_pipeline=0`, not paused. Approve: `VERIFIED`, ledger `[APPLIED]`, `pause_pipeline=1`, paused.
 
 ## 8. llm_malformed
@@ -149,4 +149,6 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 - Mongo down during `execute_action` after the fleet commit, or during `record_audit`; only the pre-execute window was exercised.
 - Mongo down longer than the fleet retry budget (expected `FAILED`, not run).
 - Worker kill before the request reaches fleet-api (expected attempt 2 `APPLIED`); the demo kills after it is in flight.
+- Worker restart during an approval wait (the timer and pending Update should survive; no demo restarts the worker in that window).
+- Retrieval failure that proceeds without context (`retrieval_error` path in `src/gax/workflows.py`); no test or demo forces it.
 - Temporal server crash; Keycard (all credential demos use the LOCAL-ONLY broker).

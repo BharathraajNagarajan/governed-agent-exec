@@ -37,7 +37,7 @@ Temporal history is the authority on execution. MongoDB holds retrieval data, do
 
 | Component | Role | Failure it protects against | Proven by |
 |---|---|---|---|
-| Temporal | Durable workflow, retries, approval timer | Worker crash mid-action; losing an approval wait; duplicate runs for one incident | demos `worker_kill`, `approval_timeout`, `duplicate_start`; `test_approval_timeout`, `test_duplicate_start_rejected` |
+| Temporal | Durable workflow, retries, approval timer | Worker crash mid-action; approval waits with no deadline; duplicate runs for one incident | demos `worker_kill`, `approval_timeout`, `duplicate_start`; `test_approval_timeout`, `test_duplicate_start_rejected` |
 | MongoDB (atlas-local) | Vector index, action ledger, audit, fleet-api state and idempotency store | Losing per-attempt evidence (Temporal history keeps only the final attempt); no audit trail | demos `worker_kill` (ledger `[PENDING, REPLAYED]`), `mongo_down`; `test_ingest_skips_unchanged_and_search_finds_runbook` |
 | Voyage | Embeddings and rerank for runbook retrieval | Proposer working without relevant runbooks; free-tier 429s | demo `voyage_429`; `test_429_backs_off_exponentially_then_succeeds`, `test_limiter_enforces_rpm`; rerank ordering in [m1-findings](docs/m1-findings.md) |
 | Claude | Proposes one `ActionProposal` (Pydantic-validated structured output) | Free-text or out-of-schema actions reaching execution | demo `llm_malformed`; `test_malformed_proposal_needs_human_after_three_bounded_attempts`, `test_malformed_proposal` |
@@ -106,10 +106,10 @@ Each row is a demo that runs against the live stack and checks its evidence (Tem
 - **Single-node atlas-local and the Temporal dev server** (SQLite file under `.gax/`). There is no replication, HA or persistence tuning.
 - **fleet-api `/admin/*` endpoints are unauthenticated.** They exist for fault injection and resets, and only listen on `127.0.0.1`.
 - **The corpus is synthetic.** It has 14 invented runbooks and 54 chunks ([corpus/README.md](corpus/README.md)).
-- **Failed retrieval does not stop the run.** The workflow records `retrieval_error` and proposes without context. Policy still gates the action.
+- **Failed retrieval does not stop the run, by design.** The workflow records `retrieval_error` and proposes without context. Policy still gates the action. This path is in the code (`src/gax/workflows.py`) but no test or demo exercises it.
 - **The idempotency key is scoped to the incident id, not the run.** Rerunning a failed incident id whose action already committed replays the stored response instead of applying again.
 - **atlas-local exits with code 137 on `docker stop`**, even though the stop returns in about 3 s. The cause was not investigated.
-- **Not verified** (from the findings docs): malformed output from the real model (structured outputs constrain decoding, so the bounded-retry path is covered by a test double); Mongo down during or after `execute_action`'s commit, or during `record_audit`; Mongo down for longer than the retry budget; a worker kill before the request reaches fleet-api; a Temporal server crash; activity heartbeating; anything Keycard-related.
+- **Not verified** (from the findings docs): malformed output from the real model (structured outputs constrain decoding, so the bounded-retry path is covered by a test double); Mongo down during or after `execute_action`'s commit, or during `record_audit`; Mongo down for longer than the retry budget; a worker kill before the request reaches fleet-api; a retrieval failure that proceeds without context; a durable approval wait surviving a worker restart; a Temporal server crash; activity heartbeating; anything Keycard-related.
 
 For production I would put the credential layer on Keycard (or another workload-identity issuer) with fleet-api validating issuer-signed tokens. I would also run a replicated MongoDB and a real Temporal cluster, authenticate the admin endpoints (or remove them), and scope idempotency keys per run where re-execution after a failed run is intended.
 
