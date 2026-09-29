@@ -5,7 +5,8 @@ $State = Join-Path $Root ".gax"
 $Pids = Join-Path $State "pids"
 $Logs = Join-Path $State "logs"
 $Python = Join-Path $Root ".venv\Scripts\python.exe"
-$Temporal = if ($env:TEMPORAL_CLI) { $env:TEMPORAL_CLI } else { "C:\Users\bhara\tools\temporal\temporal.exe" }
+$OnPath = Get-Command temporal -ErrorAction SilentlyContinue
+$Temporal = if ($env:TEMPORAL_CLI) { $env:TEMPORAL_CLI } elseif ($OnPath) { $OnPath.Source } else { "C:\Users\bhara\tools\temporal\temporal.exe" }
 $Container = "gae-atlas-local"
 New-Item -ItemType Directory -Force $Pids, $Logs | Out-Null
 
