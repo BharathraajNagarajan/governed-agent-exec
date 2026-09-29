@@ -18,6 +18,9 @@ dependencies = [
     "PyJWT==2.15.1",
 ]
 
+[project.scripts]
+gax = "gax.cli:main"
+
 [project.optional-dependencies]
 dev = ["pytest==9.1.1"]
 
