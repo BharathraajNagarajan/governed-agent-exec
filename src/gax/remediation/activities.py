@@ -1,8 +1,10 @@
+import functools
 import json
 from typing import Callable, Optional
 import anthropic
 import httpx
 from pymongo.database import Database
+from pymongo.errors import PyMongoError
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
 from gax.credentials import CredentialBroker, CredentialDenied, CredentialUnavailable
@@ -28,6 +30,16 @@ PATHS = {
 
 def idempotency_key(workflow_id: str) -> str:
     return f"{workflow_id}:{STEP}"
+
+
+def mongo_unavailable(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except PyMongoError as e:
+            raise ApplicationError(f"mongo unavailable: {type(e).__name__}", type="MongoUnavailable") from None
+    return wrapper
 
 
 def malformed_summary(e: MalformedProposal) -> str:
@@ -91,7 +103,7 @@ class RemediationActivities:
         try:
             r = self.fleet.get(f"/v1/{p.environment}/consumers/{p.target}", headers={"Authorization": f"Bearer {cred.token}"})
         except httpx.TransportError as e:
-            raise ApplicationError(f"fleet-api transport error: {type(e).__name__}", type="FleetUnavailable")
+            raise ApplicationError(f"fleet-api transport error: {type(e).__name__}", type="FleetUnavailable") from None
         if r.status_code >= 500:
             raise ApplicationError(f"fleet-api HTTP {r.status_code}", type="FleetUnavailable")
         if r.status_code >= 400:
@@ -99,10 +111,12 @@ class RemediationActivities:
         return {k: r.json()[k] for k in ("replicas", "restart_count", "paused", "offset")}
 
     @activity.defn
+    @mongo_unavailable
     def snapshot_state(self, inp: ActionInput) -> dict:
         return self._read_state(inp.workflow_id, inp.proposal)
 
     @activity.defn
+    @mongo_unavailable
     def execute_action(self, inp: ActionInput) -> ExecuteResult:
         info = activity.info()
         p, key = inp.proposal, idempotency_key(inp.workflow_id)
@@ -126,7 +140,7 @@ class RemediationActivities:
                                 headers={"Authorization": f"Bearer {cred.token}", "Idempotency-Key": key})
         except httpx.TransportError as e:
             finish("FAILED", "TRANSPORT_ERROR", type(e).__name__)
-            raise ApplicationError(f"fleet-api transport error: {type(e).__name__}", type="FleetUnavailable")
+            raise ApplicationError(f"fleet-api transport error: {type(e).__name__}", type="FleetUnavailable") from None
         if r.status_code >= 500:
             finish("FAILED", f"HTTP_{r.status_code}", r.text[:200])
             raise ApplicationError(f"fleet-api HTTP {r.status_code}", type="FleetUnavailable")
@@ -138,6 +152,7 @@ class RemediationActivities:
         return ExecuteResult(status_code=r.status_code, replayed=replayed, attempt=info.attempt, idempotency_key=key, body=r.json())
 
     @activity.defn
+    @mongo_unavailable
     def verify_outcome(self, inp: VerifyInput) -> VerifyResult:
         after = self._read_state(inp.workflow_id, inp.proposal)
         p, before = inp.proposal, inp.before
@@ -152,6 +167,7 @@ class RemediationActivities:
         return VerifyResult(ok=expected == observed, check=check, expected=expected, observed=observed, after=after)
 
     @activity.defn
+    @mongo_unavailable
     def record_audit(self, inp: AuditInput) -> str:
         event = AuditEvent(workflow_id=inp.workflow_id, incident_id=inp.incident_id, step="remediation",
                            detail={"status": inp.status, "run_id": inp.run_id, "credential_mode": self.broker.mode, **inp.record})
