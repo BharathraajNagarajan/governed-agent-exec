@@ -60,7 +60,8 @@ async def cmd_search(s, a):
 async def cmd_incident_start(s, a):
     incident = Incident(incident_id=a.id, environment=a.env, target=a.target, summary=a.summary)
     injected = Path(a.proposal_file).read_text(encoding="utf-8") if a.proposal_file else None
-    inp = RemediationInput(incident=incident, proposal_json=injected, rerank=not a.no_rerank, approval_timeout_seconds=a.approval_timeout)
+    inp = RemediationInput(incident=incident, proposal_json=injected, rerank=not a.no_rerank, retrieve=not a.no_retrieval,
+                           approval_timeout_seconds=a.approval_timeout)
     client = await temporal(s)
     try:
         handle = await client.start_workflow(RemediationWorkflow.run, inp, id=a.id, task_queue=TASK_QUEUE, id_reuse_policy=INCIDENT_ID_REUSE)
@@ -164,6 +165,7 @@ def parser() -> argparse.ArgumentParser:
     c.add_argument("--proposal-file")
     c.add_argument("--approval-timeout", type=int, default=900)
     c.add_argument("--no-rerank", action="store_true")
+    c.add_argument("--no-retrieval", action="store_true")
     c.add_argument("--wait", action="store_true")
     c.set_defaults(fn=cmd_incident_start)
 

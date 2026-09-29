@@ -84,11 +84,15 @@ class RemediationWorkflow:
     async def _remediate(self, inp: RemediationInput) -> str:
         wid, rec, incident = workflow.info().workflow_id, self.record, inp.incident
         self.status = "RETRIEVING"
-        try:
-            hits = await workflow.execute_activity_method(RemediationActivities.retrieve_context,
-                                                          RetrieveInput(query=incident.summary, k=inp.k, rerank=inp.rerank), **RETRIEVE)
-        except ActivityError as e:
-            hits, rec["retrieval_error"] = [], failure(e)
+        hits = []
+        if not inp.retrieve:
+            rec["retrieval"] = "skipped"
+        else:
+            try:
+                hits = await workflow.execute_activity_method(RemediationActivities.retrieve_context,
+                                                              RetrieveInput(query=incident.summary, k=inp.k, rerank=inp.rerank), **RETRIEVE)
+            except ActivityError as e:
+                rec["retrieval_error"] = failure(e)
         rec["context"] = [{"chunk_id": h.chunk_id, "vector_score": h.vector_score, "rerank_score": h.rerank_score} for h in hits]
 
         self.status = "PROPOSING"

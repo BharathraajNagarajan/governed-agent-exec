@@ -11,6 +11,7 @@ class RemediationInput(BaseModel):
     incident: Incident
     proposal_json: Optional[str] = None
     rerank: bool = True
+    retrieve: bool = True
     k: int = 5
     approval_timeout_seconds: int = 900
 
