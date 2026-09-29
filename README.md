@@ -70,14 +70,14 @@ Prerequisites: Windows with PowerShell, Python 3.12 with a venv at `.venv`, Dock
 
 - `start-stack.ps1` starts atlas-local (Docker), the Temporal dev server, fleet-api and, with `-WithWorker`, the worker. Temporal UI: http://localhost:8233.
 - A second `ingest` embeds nothing: unchanged chunks are skipped by content hash.
-- `demo run all` runs the twelve failure demos. The demos inject their proposals and skip retrieval, so they make no LLM or Voyage calls. The exception is `voyage_429`, which calls Voyage. Results go to `.gax/demo-results/`.
+- `demo run all` runs the twelve failure demos. The demos inject their proposals and skip retrieval, so they make no LLM or Voyage calls. The exception is `voyage_429`, which calls Voyage. Results go to `.gax/demo-results/`; sanitized copies from the recorded run are in [docs/evidence/](docs/evidence/).
 - `stop-stack.ps1` stops the worker, fleet-api, Temporal and the container.
 
 Other commands: `gax search "<query>"`, `gax status <id>`, `gax approve|reject <id> --by <name>`, `gax broker revoke|restore|transient --action <action>`, `gax fleet faults|counters|reset|state`, `gax demo list`. `scripts\start-worker.ps1` and `scripts\stop-worker.ps1` manage the worker on its own (log `.gax\logs\worker.log`, launcher and real PID in `.gax\pids\worker.pid`). Tests: `.venv\Scripts\python.exe -m pytest`. The integration tests need atlas-local on `localhost:27017`.
 
 ## Failure matrix
 
-Each row is a demo that runs against the live stack and checks its evidence (Temporal history, ledger, fleet-api counters, fleet state, worker log). Every demo also scans its workflow histories and worker log for credential material. Full details are in [docs/failure-semantics.md](docs/failure-semantics.md). The observed results below come from a single recorded `gax demo run all` on 2026-09-29, where all 12 demos passed (257.9 s total; per-demo seconds and checks in the "Observed run" table).
+Each row is a demo that runs against the live stack and checks its evidence (Temporal history, ledger, fleet-api counters, fleet state, worker log). Every demo also scans its workflow histories and worker log for credential material. Full details are in [docs/failure-semantics.md](docs/failure-semantics.md). The observed results below come from a single recorded `gax demo run all` on 2026-09-29, where all 12 demos passed (257.9 s total; per-demo seconds and checks in the "Observed run" table; result files in [docs/evidence/](docs/evidence/)).
 
 | Demo | What breaks | What the system does | Observed |
 |---|---|---|---|

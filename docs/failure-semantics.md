@@ -9,7 +9,7 @@ One demo per failure-matrix row (docs/design.md). Every demo runs against the li
 .venv\Scripts\gax.exe demo run all
 ```
 
-`demo run` starts a worker via `scripts\start-worker.ps1` when none is tracked and stops it at the end. Results: `.gax/demo-results/<name>.json` (every check with its observed value, notes, incident ids, evidence) and `.gax/demo-results/summary.json`.
+`demo run` starts a worker via `scripts\start-worker.ps1` when none is tracked and stops it at the end. Results: `.gax/demo-results/<name>.json` (every check with its observed value, notes, incident ids, evidence) and `.gax/demo-results/summary.json`. Sanitized copies from the observed run below are in [docs/evidence/](evidence/).
 
 A demo is **PASS** only if every check passes, **NOT REPRODUCED** if any check marked as reproducing the failure fails (for example no 429 occurred), otherwise **FAIL**. Every demo also scans all its workflow histories and its slice of the worker log for `eyJhbGciOi` and `Bearer `.
 
@@ -37,7 +37,7 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 
 ## Observed run
 
-`gax demo run all`, 2026-09-29, host Windows 11, Temporal CLI 1.9.1, temporalio 1.33.0, atlas-local `preview`. All 12 demos passed in one run. Total 257.9 s as measured by the runner (285.2 s wall clock including worker start and stop). Log: `.gax/demo-results/run-all.log`.
+`gax demo run all`, 2026-09-29, host Windows 11, Temporal CLI 1.9.1, temporalio 1.33.0, atlas-local `preview`. All 12 demos passed in one run. Total 257.9 s as measured by the runner (285.2 s wall clock including worker start and stop). Log: [docs/evidence/run-all.log](evidence/run-all.log).
 
 | Demo | Result | Seconds | Checks |
 |---|---|---|---|
