@@ -1,0 +1,65 @@
+{
+  "total_s": 257.9,
+  "results": [
+    {
+      "name": "worker_kill",
+      "status": "PASS",
+      "duration_s": 34.0
+    },
+    {
+      "name": "fleet_5xx",
+      "status": "PASS",
+      "duration_s": 4.2
+    },
+    {
+      "name": "response_lost",
+      "status": "PASS",
+      "duration_s": 2.4
+    },
+    {
+      "name": "credential_denied",
+      "status": "PASS",
+      "duration_s": 4.8
+    },
+    {
+      "name": "credential_transient",
+      "status": "PASS",
+      "duration_s": 5.5
+    },
+    {
+      "name": "policy_deny",
+      "status": "PASS",
+      "duration_s": 0.7
+    },
+    {
+      "name": "approval_timeout",
+      "status": "PASS",
+      "duration_s": 9.1
+    },
+    {
+      "name": "approval_worker_restart",
+      "status": "PASS",
+      "duration_s": 26.1
+    },
+    {
+      "name": "llm_malformed",
+      "status": "PASS",
+      "duration_s": 0.4
+    },
+    {
+      "name": "voyage_429",
+      "status": "PASS",
+      "duration_s": 66.3
+    },
+    {
+      "name": "mongo_down",
+      "status": "PASS",
+      "duration_s": 32.2
+    },
+    {
+      "name": "duplicate_start",
+      "status": "PASS",
+      "duration_s": 55.9
+    }
+  ]
+}

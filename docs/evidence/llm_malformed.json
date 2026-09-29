@@ -1,0 +1,118 @@
+{
+  "name": "llm_malformed",
+  "title": "Malformed proposal ends NEEDS_HUMAN with zero fleet requests",
+  "status": "PASS",
+  "duration_s": 0.4,
+  "finished_at": "2026-09-29T23:12:46.948239+00:00",
+  "error": null,
+  "checks": [
+    {
+      "name": "validator rejected the proposal (MalformedProposal)",
+      "ok": true,
+      "observed": {
+        "type": "MalformedProposal",
+        "message": "MalformedProposal: injected proposal is malformed",
+        "details": [
+          "[{\"type\": \"literal_error\", \"loc\": [\"action\"]}]"
+        ]
+      },
+      "reproduce": true
+    },
+    {
+      "name": "status NEEDS_HUMAN",
+      "ok": true,
+      "observed": "NEEDS_HUMAN",
+      "reproduce": false
+    },
+    {
+      "name": "propose_action failed once, non-retryable",
+      "ok": true,
+      "observed": [
+        {
+          "activity": "propose_action",
+          "type": "MalformedProposal",
+          "message": "injected proposal is malformed",
+          "non_retryable": true,
+          "retry_state": "RETRY_STATE_NON_RETRYABLE_FAILURE"
+        }
+      ],
+      "reproduce": false
+    },
+    {
+      "name": "zero fleet requests",
+      "ok": true,
+      "observed": {},
+      "reproduce": false
+    },
+    {
+      "name": "nothing after propose_action scheduled except record_audit",
+      "ok": true,
+      "observed": [
+        "propose_action",
+        "record_audit"
+      ],
+      "reproduce": false
+    },
+    {
+      "name": "no credential material in workflow history or worker log",
+      "ok": true,
+      "observed": {
+        "histories": 1,
+        "hits": 0
+      },
+      "reproduce": false
+    }
+  ],
+  "notes": [
+    "The malformed proposal was injected. Real-model malformed output was NOT reproduced: the proposer uses structured outputs, which constrain decoding to the ActionProposal schema (docs/m0-findings.md finding 6).",
+    "The bounded 3-attempt retry on malformed model output is covered by tests/integration/test_remediation_workflow.py::test_malformed_proposal_needs_human_after_three_bounded_attempts with ProposerTestDouble."
+  ],
+  "incidents": [
+    {
+      "workflow_id": "DEMO-LLM-MALFORMED-20260929161246",
+      "run_id": "01a0ef71-2c20-7858-b1e7-925d83e6fc26"
+    }
+  ],
+  "evidence": {
+    "history": {
+      "scheduled": [
+        "propose_action",
+        "record_audit"
+      ],
+      "attempts": [
+        {
+          "activity": "propose_action",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "record_audit",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        }
+      ],
+      "completed": [
+        "record_audit"
+      ],
+      "failures": [
+        {
+          "activity": "propose_action",
+          "type": "MalformedProposal",
+          "message": "injected proposal is malformed",
+          "non_retryable": true,
+          "retry_state": "RETRY_STATE_NON_RETRYABLE_FAILURE"
+        }
+      ]
+    },
+    "counters": {},
+    "proposal_error": {
+      "type": "MalformedProposal",
+      "message": "MalformedProposal: injected proposal is malformed",
+      "details": [
+        "[{\"type\": \"literal_error\", \"loc\": [\"action\"]}]"
+      ]
+    }
+  }
+}

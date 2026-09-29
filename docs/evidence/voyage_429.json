@@ -1,0 +1,218 @@
+{
+  "name": "voyage_429",
+  "title": "Voyage free-tier rate limit exhausted, then an incident uses real retrieval",
+  "status": "PASS",
+  "duration_s": 66.3,
+  "finished_at": "2026-09-29T23:13:53.944569+00:00",
+  "error": null,
+  "checks": [
+    {
+      "name": "VOYAGE_API_KEY configured",
+      "ok": true,
+      "observed": true,
+      "reproduce": true
+    },
+    {
+      "name": "direct calls (bypassing the client limiter) hit 429",
+      "ok": true,
+      "observed": [
+        200,
+        200,
+        200,
+        429
+      ],
+      "reproduce": false
+    },
+    {
+      "name": "real 429s in worker log",
+      "ok": true,
+      "observed": [
+        {
+          "path": "embeddings",
+          "attempt": 1,
+          "backoff_s": 2.0
+        },
+        {
+          "path": "embeddings",
+          "attempt": 2,
+          "backoff_s": 4.0
+        },
+        {
+          "path": "embeddings",
+          "attempt": 3,
+          "backoff_s": 8.0
+        }
+      ],
+      "reproduce": true
+    },
+    {
+      "name": "retrieve_context completed",
+      "ok": true,
+      "observed": [
+        "retrieve_context",
+        "propose_action",
+        "evaluate_policy",
+        "snapshot_state",
+        "execute_action",
+        "verify_outcome",
+        "record_audit"
+      ],
+      "reproduce": false
+    },
+    {
+      "name": "retrieval returned runbook chunks, no retrieval_error",
+      "ok": true,
+      "observed": {
+        "chunks": [
+          "consumer-lag-no-active-members#symptoms",
+          "consumer-lag-no-active-members#remediation",
+          "consumer-lag-no-active-members#verification",
+          "consumer-lag-no-active-members#diagnosis",
+          "rebalance-storm#symptoms"
+        ],
+        "retrieval_error": null
+      },
+      "reproduce": false
+    },
+    {
+      "name": "status VERIFIED",
+      "ok": true,
+      "observed": "VERIFIED",
+      "reproduce": false
+    },
+    {
+      "name": "no credential material in workflow history or worker log",
+      "ok": true,
+      "observed": {
+        "histories": 1,
+        "hits": 0
+      },
+      "reproduce": false
+    }
+  ],
+  "notes": [],
+  "incidents": [
+    {
+      "workflow_id": "DEMO-VOYAGE-429-20260929161247",
+      "run_id": "01a0ef71-3639-71c9-be66-6be4603cdabd"
+    }
+  ],
+  "evidence": {
+    "direct_probe_statuses": [
+      200,
+      200,
+      200,
+      429
+    ],
+    "worker_429_backoffs": [
+      {
+        "path": "embeddings",
+        "attempt": 1,
+        "backoff_s": 2.0
+      },
+      {
+        "path": "embeddings",
+        "attempt": 2,
+        "backoff_s": 4.0
+      },
+      {
+        "path": "embeddings",
+        "attempt": 3,
+        "backoff_s": 8.0
+      }
+    ],
+    "history": {
+      "scheduled": [
+        "retrieve_context",
+        "propose_action",
+        "evaluate_policy",
+        "snapshot_state",
+        "execute_action",
+        "verify_outcome",
+        "record_audit"
+      ],
+      "attempts": [
+        {
+          "activity": "retrieve_context",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "propose_action",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "evaluate_policy",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "snapshot_state",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "execute_action",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "verify_outcome",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "record_audit",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        }
+      ],
+      "completed": [
+        "retrieve_context",
+        "propose_action",
+        "evaluate_policy",
+        "snapshot_state",
+        "execute_action",
+        "verify_outcome",
+        "record_audit"
+      ],
+      "failures": []
+    },
+    "context": [
+      {
+        "chunk_id": "consumer-lag-no-active-members#symptoms",
+        "vector_score": 0.802603006362915,
+        "rerank_score": 0.8359375
+      },
+      {
+        "chunk_id": "consumer-lag-no-active-members#remediation",
+        "vector_score": 0.7731873989105225,
+        "rerank_score": 0.76171875
+      },
+      {
+        "chunk_id": "consumer-lag-no-active-members#verification",
+        "vector_score": 0.8140655159950256,
+        "rerank_score": 0.7109375
+      },
+      {
+        "chunk_id": "consumer-lag-no-active-members#diagnosis",
+        "vector_score": 0.7769877910614014,
+        "rerank_score": 0.6640625
+      },
+      {
+        "chunk_id": "rebalance-storm#symptoms",
+        "vector_score": 0.7629842758178711,
+        "rerank_score": 0.59375
+      }
+    ],
+    "retrieval_error": null
+  }
+}

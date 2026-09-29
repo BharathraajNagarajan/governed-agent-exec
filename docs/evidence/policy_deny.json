@@ -1,0 +1,114 @@
+{
+  "name": "policy_deny",
+  "title": "Prod reset_consumer_offset is denied by policy before any fleet request",
+  "status": "PASS",
+  "duration_s": 0.7,
+  "finished_at": "2026-09-29T23:12:07.605117+00:00",
+  "error": null,
+  "checks": [
+    {
+      "name": "policy decision DENY",
+      "ok": true,
+      "observed": {
+        "decision": "DENY",
+        "reason": "reset_consumer_offset in prod is DENY",
+        "policy_version": "policy-v1"
+      },
+      "reproduce": true
+    },
+    {
+      "name": "status DENIED",
+      "ok": true,
+      "observed": "DENIED",
+      "reproduce": false
+    },
+    {
+      "name": "fleet-api counters empty",
+      "ok": true,
+      "observed": {},
+      "reproduce": false
+    },
+    {
+      "name": "no snapshot_state or execute_action scheduled",
+      "ok": true,
+      "observed": [
+        "propose_action",
+        "evaluate_policy",
+        "record_audit"
+      ],
+      "reproduce": false
+    },
+    {
+      "name": "prod offset unchanged",
+      "ok": true,
+      "observed": {
+        "before": 1000,
+        "after": 1000
+      },
+      "reproduce": false
+    },
+    {
+      "name": "no ledger rows",
+      "ok": true,
+      "observed": [],
+      "reproduce": false
+    },
+    {
+      "name": "no credential material in workflow history or worker log",
+      "ok": true,
+      "observed": {
+        "histories": 1,
+        "hits": 0
+      },
+      "reproduce": false
+    }
+  ],
+  "notes": [],
+  "incidents": [
+    {
+      "workflow_id": "DEMO-POLICY-DENY-20260929161206",
+      "run_id": "01a0ef70-9125-79bc-be4c-8f7e9320a477"
+    }
+  ],
+  "evidence": {
+    "history": {
+      "scheduled": [
+        "propose_action",
+        "evaluate_policy",
+        "record_audit"
+      ],
+      "attempts": [
+        {
+          "activity": "propose_action",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "evaluate_policy",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "record_audit",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        }
+      ],
+      "completed": [
+        "propose_action",
+        "evaluate_policy",
+        "record_audit"
+      ],
+      "failures": []
+    },
+    "counters": {},
+    "decision": {
+      "decision": "DENY",
+      "reason": "reset_consumer_offset in prod is DENY",
+      "policy_version": "policy-v1"
+    }
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "name": "duplicate_start",
+  "title": "Second start of a running and of a completed incident id is rejected",
+  "status": "PASS",
+  "duration_s": 55.9,
+  "finished_at": "2026-09-29T23:15:24.734422+00:00",
+  "error": null,
+  "checks": [
+    {
+      "name": "first start accepted",
+      "ok": true,
+      "observed": {
+        "rc": 0,
+        "stdout": "started DEMO-DUPLICATE-START-20260929161428 run_id=01a0ef73-0ba6-7008-aedc-3b4b89930e3e proposal_source=file"
+      },
+      "reproduce": true
+    },
+    {
+      "name": "duplicate start while running rejected (exit 2)",
+      "ok": true,
+      "observed": {
+        "rc": 2,
+        "stdout": "rejected: incident DEMO-DUPLICATE-START-20260929161428 is running or already completed"
+      },
+      "reproduce": false
+    },
+    {
+      "name": "duplicate start after completion rejected (exit 2)",
+      "ok": true,
+      "observed": {
+        "rc": 2,
+        "stdout": "rejected: incident DEMO-DUPLICATE-START-20260929161428 is running or already completed"
+      },
+      "reproduce": false
+    },
+    {
+      "name": "still one run for the incident id",
+      "ok": true,
+      "observed": {
+        "first_run": "01a0ef73-0ba6-7008-aedc-3b4b89930e3e",
+        "latest_run": "01a0ef73-0ba6-7008-aedc-3b4b89930e3e"
+      },
+      "reproduce": false
+    },
+    {
+      "name": "state changed once",
+      "ok": true,
+      "observed": {
+        "restart_count": 1,
+        "ledger": [
+          "APPLIED"
+        ],
+        "counters": {
+          "get_state": 2,
+          "restart_consumer": 1
+        }
+      },
+      "reproduce": false
+    },
+    {
+      "name": "status VERIFIED",
+      "ok": true,
+      "observed": "VERIFIED",
+      "reproduce": false
+    },
+    {
+      "name": "no credential material in workflow history or worker log",
+      "ok": true,
+      "observed": {
+        "histories": 1,
+        "hits": 0
+      },
+      "reproduce": false
+    }
+  ],
+  "notes": [],
+  "incidents": [
+    {
+      "workflow_id": "DEMO-DUPLICATE-START-20260929161428",
+      "run_id": "01a0ef73-0ba6-7008-aedc-3b4b89930e3e"
+    }
+  ],
+  "evidence": {
+    "faults": [
+      {
+        "action": "restart_consumer",
+        "latency_ms": 6000
+      }
+    ],
+    "first": {
+      "rc": 0,
+      "stdout": "started DEMO-DUPLICATE-START-20260929161428 run_id=01a0ef73-0ba6-7008-aedc-3b4b89930e3e proposal_source=file"
+    },
+    "while_running": {
+      "rc": 2,
+      "stdout": "rejected: incident DEMO-DUPLICATE-START-20260929161428 is running or already completed"
+    },
+    "after_completion": {
+      "rc": 2,
+      "stdout": "rejected: incident DEMO-DUPLICATE-START-20260929161428 is running or already completed"
+    }
+  }
+}

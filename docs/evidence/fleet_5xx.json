@@ -1,0 +1,176 @@
+{
+  "name": "fleet_5xx",
+  "title": "fleet-api returns HTTP 500 twice, then succeeds",
+  "status": "PASS",
+  "duration_s": 4.2,
+  "finished_at": "2026-09-29T23:11:49.669862+00:00",
+  "error": null,
+  "checks": [
+    {
+      "name": "injected 500s reached execute_action",
+      "ok": true,
+      "observed": [
+        "HTTP_500",
+        "HTTP_500",
+        "APPLIED"
+      ],
+      "reproduce": true
+    },
+    {
+      "name": "ledger attempts HTTP_500, HTTP_500, APPLIED",
+      "ok": true,
+      "observed": [
+        "HTTP_500",
+        "HTTP_500",
+        "APPLIED"
+      ],
+      "reproduce": false
+    },
+    {
+      "name": "history: execute_action attempt 3, lastFailure fleet-api HTTP 500",
+      "ok": true,
+      "observed": {
+        "activity": "execute_action",
+        "attempt": 3,
+        "last_failure": "fleet-api HTTP 500",
+        "last_failure_type": "FleetUnavailable"
+      },
+      "reproduce": false
+    },
+    {
+      "name": "fleet-api received 3 restart requests",
+      "ok": true,
+      "observed": {
+        "get_state": 2,
+        "restart_consumer": 3
+      },
+      "reproduce": false
+    },
+    {
+      "name": "state changed exactly once",
+      "ok": true,
+      "observed": {
+        "before": 0,
+        "after": 1
+      },
+      "reproduce": false
+    },
+    {
+      "name": "status VERIFIED",
+      "ok": true,
+      "observed": "VERIFIED",
+      "reproduce": false
+    },
+    {
+      "name": "no credential material in workflow history or worker log",
+      "ok": true,
+      "observed": {
+        "histories": 1,
+        "hits": 0
+      },
+      "reproduce": false
+    }
+  ],
+  "notes": [],
+  "incidents": [
+    {
+      "workflow_id": "DEMO-FLEET-5XX-20260929161145",
+      "run_id": "01a0ef70-3d64-7372-98e9-c566f71603f9"
+    }
+  ],
+  "evidence": {
+    "faults": [
+      {
+        "action": "restart_consumer",
+        "fail_next": 2
+      }
+    ],
+    "ledger": [
+      {
+        "attempt": 1,
+        "status": "FAILED",
+        "run_id": "01a0ef70-3d64-7372-98e9-c566f71603f9",
+        "outcome": "HTTP_500",
+        "error": "{\"detail\":\"injected failure\"}",
+        "at": "2026-09-29 23:11:46.041000"
+      },
+      {
+        "attempt": 2,
+        "status": "FAILED",
+        "run_id": "01a0ef70-3d64-7372-98e9-c566f71603f9",
+        "outcome": "HTTP_500",
+        "error": "{\"detail\":\"injected failure\"}",
+        "at": "2026-09-29 23:11:47.108000"
+      },
+      {
+        "attempt": 3,
+        "status": "APPLIED",
+        "run_id": "01a0ef70-3d64-7372-98e9-c566f71603f9",
+        "outcome": "APPLIED",
+        "error": null,
+        "at": "2026-09-29 23:11:49.214000"
+      }
+    ],
+    "history": {
+      "scheduled": [
+        "propose_action",
+        "evaluate_policy",
+        "snapshot_state",
+        "execute_action",
+        "verify_outcome",
+        "record_audit"
+      ],
+      "attempts": [
+        {
+          "activity": "propose_action",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "evaluate_policy",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "snapshot_state",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "execute_action",
+          "attempt": 3,
+          "last_failure": "fleet-api HTTP 500",
+          "last_failure_type": "FleetUnavailable"
+        },
+        {
+          "activity": "verify_outcome",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "record_audit",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        }
+      ],
+      "completed": [
+        "propose_action",
+        "evaluate_policy",
+        "snapshot_state",
+        "execute_action",
+        "verify_outcome",
+        "record_audit"
+      ],
+      "failures": []
+    },
+    "counters": {
+      "get_state": 2,
+      "restart_consumer": 3
+    }
+  }
+}

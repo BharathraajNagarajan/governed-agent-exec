@@ -1,0 +1,171 @@
+{
+  "name": "approval_timeout",
+  "title": "pause_pipeline needs approval: timeout, reject and approve paths",
+  "status": "PASS",
+  "duration_s": 9.1,
+  "finished_at": "2026-09-29T23:12:17.888228+00:00",
+  "error": null,
+  "checks": [
+    {
+      "name": "reached AWAITING_APPROVAL",
+      "ok": true,
+      "observed": "AWAITING_APPROVAL",
+      "reproduce": false
+    },
+    {
+      "name": "approval timed out after 5s",
+      "ok": true,
+      "observed": {
+        "status": "APPROVAL_TIMEOUT",
+        "approval": {
+          "decision": "TIMEOUT",
+          "timeout_seconds": 5
+        }
+      },
+      "reproduce": true
+    },
+    {
+      "name": "not executed: no execute_action scheduled, pause counter 0",
+      "ok": true,
+      "observed": {
+        "scheduled": [
+          "propose_action",
+          "evaluate_policy",
+          "record_audit"
+        ],
+        "counters": {}
+      },
+      "reproduce": false
+    },
+    {
+      "name": "late approval after timeout is rejected",
+      "ok": true,
+      "observed": "rejected: RPCError: workflow execution already completed",
+      "reproduce": false
+    },
+    {
+      "name": "reject path: REJECTED, not executed",
+      "ok": true,
+      "observed": {
+        "status": "REJECTED",
+        "approval": {
+          "decision": "REJECTED",
+          "by": "demo-operator",
+          "comment": "not during business hours",
+          "at": "2026-09-29T23:12:14.910949+00:00"
+        }
+      },
+      "reproduce": false
+    },
+    {
+      "name": "approve path: VERIFIED, paused once",
+      "ok": true,
+      "observed": {
+        "status": "VERIFIED",
+        "ledger": [
+          "APPLIED"
+        ]
+      },
+      "reproduce": false
+    },
+    {
+      "name": "no credential material in workflow history or worker log",
+      "ok": true,
+      "observed": {
+        "histories": 3,
+        "hits": 0
+      },
+      "reproduce": false
+    }
+  ],
+  "notes": [],
+  "incidents": [
+    {
+      "workflow_id": "DEMO-APPROVAL-TIMEOUT-20260929161208-TIMEOUT",
+      "run_id": "01a0ef70-9876-7805-bf64-9037ac50ecfe"
+    },
+    {
+      "workflow_id": "DEMO-APPROVAL-TIMEOUT-20260929161208-REJECT",
+      "run_id": "01a0ef70-aeaa-75a9-b162-a0da6288e41d"
+    },
+    {
+      "workflow_id": "DEMO-APPROVAL-TIMEOUT-20260929161208-APPROVE",
+      "run_id": "01a0ef70-b1ea-7a1f-a157-f2a787fb4489"
+    }
+  ],
+  "evidence": {
+    "timeout": {
+      "history": {
+        "scheduled": [
+          "propose_action",
+          "evaluate_policy",
+          "record_audit"
+        ],
+        "attempts": [
+          {
+            "activity": "propose_action",
+            "attempt": 1,
+            "last_failure": null,
+            "last_failure_type": null
+          },
+          {
+            "activity": "evaluate_policy",
+            "attempt": 1,
+            "last_failure": null,
+            "last_failure_type": null
+          },
+          {
+            "activity": "record_audit",
+            "attempt": 1,
+            "last_failure": null,
+            "last_failure_type": null
+          }
+        ],
+        "completed": [
+          "propose_action",
+          "evaluate_policy",
+          "record_audit"
+        ],
+        "failures": []
+      },
+      "counters": {},
+      "approval": {
+        "decision": "TIMEOUT",
+        "timeout_seconds": 5
+      }
+    },
+    "reject": {
+      "status": "REJECTED",
+      "approval": {
+        "decision": "REJECTED",
+        "by": "demo-operator",
+        "comment": "not during business hours",
+        "at": "2026-09-29T23:12:14.910949+00:00"
+      },
+      "counters": {}
+    },
+    "approve": {
+      "status": "VERIFIED",
+      "approval": {
+        "decision": "APPROVED",
+        "by": "demo-operator",
+        "comment": "approved",
+        "at": "2026-09-29T23:12:15.810226+00:00"
+      },
+      "ledger": [
+        {
+          "attempt": 1,
+          "status": "APPLIED",
+          "run_id": "01a0ef70-b1ea-7a1f-a157-f2a787fb4489",
+          "outcome": "APPLIED",
+          "error": null,
+          "at": "2026-09-29 23:12:16.105000"
+        }
+      ],
+      "counters": {
+        "get_state": 2,
+        "pause_pipeline": 1
+      }
+    }
+  }
+}

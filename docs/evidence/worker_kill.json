@@ -1,0 +1,202 @@
+{
+  "name": "worker_kill",
+  "title": "Real worker process hard-killed while execute_action attempt 1 is in flight",
+  "status": "PASS",
+  "duration_s": 34.0,
+  "finished_at": "2026-09-29T23:11:44.593582+00:00",
+  "error": null,
+  "checks": [
+    {
+      "name": "ledger shows execute_action attempt 1 PENDING",
+      "ok": true,
+      "observed": {
+        "attempt": 1,
+        "status": "PENDING",
+        "run_id": "01a0ef6f-b5e5-754a-8ddc-a145bbb3eced",
+        "outcome": null,
+        "error": null,
+        "at": "2026-09-29 23:11:14.927000"
+      },
+      "reproduce": true
+    },
+    {
+      "name": "real worker PID hard-killed during attempt 1",
+      "ok": true,
+      "observed": {
+        "fleet_counters": {
+          "get_state": 1,
+          "restart_consumer": 1
+        },
+        "launcher_pid": 6752,
+        "real_pid": 29116
+      },
+      "reproduce": true
+    },
+    {
+      "name": "execute_action retried after start_to_close timeout (history lastFailure)",
+      "ok": true,
+      "observed": {
+        "activity": "execute_action",
+        "attempt": 2,
+        "last_failure": "activity StartToClose timeout",
+        "last_failure_type": null
+      },
+      "reproduce": false
+    },
+    {
+      "name": "killed attempt 1 never finished in ledger",
+      "ok": true,
+      "observed": [
+        {
+          "attempt": 1,
+          "status": "PENDING",
+          "run_id": "01a0ef6f-b5e5-754a-8ddc-a145bbb3eced",
+          "outcome": null,
+          "error": null,
+          "at": "2026-09-29 23:11:14.927000"
+        }
+      ],
+      "reproduce": false
+    },
+    {
+      "name": "attempt 2 outcome REPLAYED or APPLIED",
+      "ok": true,
+      "observed": [
+        "PENDING",
+        "REPLAYED"
+      ],
+      "reproduce": false
+    },
+    {
+      "name": "restart_count increased exactly once",
+      "ok": true,
+      "observed": {
+        "before": 0,
+        "after": 1
+      },
+      "reproduce": false
+    },
+    {
+      "name": "restarted worker logged its real pid",
+      "ok": true,
+      "observed": 22672,
+      "reproduce": false
+    },
+    {
+      "name": "status VERIFIED",
+      "ok": true,
+      "observed": "VERIFIED",
+      "reproduce": false
+    },
+    {
+      "name": "no credential material in workflow history or worker log",
+      "ok": true,
+      "observed": {
+        "histories": 1,
+        "hits": 0
+      },
+      "reproduce": false
+    }
+  ],
+  "notes": [],
+  "incidents": [
+    {
+      "workflow_id": "DEMO-WORKER-KILL-20260929161110",
+      "run_id": "01a0ef6f-b5e5-754a-8ddc-a145bbb3eced"
+    }
+  ],
+  "evidence": {
+    "faults": [
+      {
+        "action": "restart_consumer",
+        "latency_ms": 8000
+      }
+    ],
+    "worker": {
+      "killed_pid": 29116,
+      "restarted_pid": 22672,
+      "fleet_counters": {
+        "get_state": 1,
+        "restart_consumer": 1
+      },
+      "launcher_pid": 6752,
+      "real_pid": 29116
+    },
+    "kill_to_completion_s": 27.3,
+    "ledger": [
+      {
+        "attempt": 1,
+        "status": "PENDING",
+        "run_id": "01a0ef6f-b5e5-754a-8ddc-a145bbb3eced",
+        "outcome": null,
+        "error": null,
+        "at": "2026-09-29 23:11:14.927000"
+      },
+      {
+        "attempt": 2,
+        "status": "APPLIED",
+        "run_id": "01a0ef6f-b5e5-754a-8ddc-a145bbb3eced",
+        "outcome": "REPLAYED",
+        "error": null,
+        "at": "2026-09-29 23:11:35.955000"
+      }
+    ],
+    "history": {
+      "scheduled": [
+        "propose_action",
+        "evaluate_policy",
+        "snapshot_state",
+        "execute_action",
+        "verify_outcome",
+        "record_audit"
+      ],
+      "attempts": [
+        {
+          "activity": "propose_action",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "evaluate_policy",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "snapshot_state",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "execute_action",
+          "attempt": 2,
+          "last_failure": "activity StartToClose timeout",
+          "last_failure_type": null
+        },
+        {
+          "activity": "verify_outcome",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "record_audit",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        }
+      ],
+      "completed": [
+        "propose_action",
+        "evaluate_policy",
+        "snapshot_state",
+        "execute_action",
+        "verify_outcome",
+        "record_audit"
+      ],
+      "failures": []
+    }
+  }
+}
