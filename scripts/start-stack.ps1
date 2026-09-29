@@ -9,6 +9,16 @@ $Temporal = if ($env:TEMPORAL_CLI) { $env:TEMPORAL_CLI } else { "C:\Users\bhara\
 $Container = "gae-atlas-local"
 New-Item -ItemType Directory -Force $Pids, $Logs | Out-Null
 
+function Start-Detached([string]$Name, [string]$Exe, [string[]]$Arguments) {
+    $quoted = ($Arguments | ForEach-Object { "`"$_`"" }) -join " "
+    $out = Join-Path $Logs "$Name.out.log"
+    $err = Join-Path $Logs "$Name.err.log"
+    $p = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"`"$Exe`" $quoted 1>`"$out`" 2>`"$err`"`"" `
+        -WorkingDirectory $Root -WindowStyle Hidden -PassThru
+    Set-Content -Path (Join-Path $Pids "$Name.pid") -Value $p.Id -Encoding ascii
+    $p
+}
+
 function Wait-Until([string]$Name, [scriptblock]$Check, [int]$TimeoutSec = 60) {
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
     while (-not (& $Check)) {
@@ -44,10 +54,7 @@ if (Get-TrackedProcess "temporal") {
     Write-Host "temporal already running"
 } else {
     if (Test-Port 7233) { throw "port 7233 is in use by an untracked process" }
-    $p = Start-Process -FilePath $Temporal -ArgumentList "server", "start-dev", "--db-filename", (Join-Path $State "temporal.db") `
-        -RedirectStandardOutput (Join-Path $Logs "temporal.out.log") -RedirectStandardError (Join-Path $Logs "temporal.err.log") `
-        -WindowStyle Hidden -PassThru
-    Set-Content -Path (Join-Path $Pids "temporal.pid") -Value $p.Id -Encoding ascii
+    $p = Start-Detached "temporal" $Temporal @("server", "start-dev", "--db-filename", (Join-Path $State "temporal.db"))
     Write-Host "temporal pid=$($p.Id)"
 }
 Wait-Until "temporal (7233)" { Test-Port 7233 } 60
@@ -56,11 +63,8 @@ if (Get-TrackedProcess "fleet-api") {
     Write-Host "fleet-api already running"
 } else {
     if (Test-Port $FleetPort) { throw "port $FleetPort is in use by an untracked process" }
-    $out = Join-Path $Logs "fleet-api.out.log"
     $err = Join-Path $Logs "fleet-api.err.log"
-    $p = Start-Process -FilePath $Python -ArgumentList "-m", "uvicorn", "fleet_api.app:create_app", "--factory", "--host", "127.0.0.1", "--port", $FleetPort `
-        -WorkingDirectory $Root -RedirectStandardOutput $out -RedirectStandardError $err -WindowStyle Hidden -PassThru
-    Set-Content -Path (Join-Path $Pids "fleet-api.pid") -Value $p.Id -Encoding ascii
+    $p = Start-Detached "fleet-api" $Python @("-m", "uvicorn", "fleet_api.app:create_app", "--factory", "--host", "127.0.0.1", "--port", "$FleetPort")
     $deadline = (Get-Date).AddSeconds(30)
     while (-not (Test-FleetHealthy)) {
         if ($p.HasExited -or (Get-Date) -gt $deadline) {

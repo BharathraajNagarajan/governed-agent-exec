@@ -8,7 +8,7 @@ foreach ($name in "fleet-api", "temporal") {
     if (-not (Test-Path $file)) { Write-Host "$name not tracked"; continue }
     foreach ($id in Get-Content $file) {
         if (Get-Process -Id ([int]$id) -ErrorAction SilentlyContinue) {
-            taskkill /PID $id /T /F | Out-Null
+            taskkill /PID $id /T /F 2>$null | Out-Null
             Write-Host "$name stopped pid=$id"
         }
     }
