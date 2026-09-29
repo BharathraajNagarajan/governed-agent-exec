@@ -1,15 +1,18 @@
 # Durable & Governed Agent Execution System
 
-Status: M1. fleet-api and the credential broker run in LOCAL-ONLY mode until Keycard is available (docs/decisions/0002-keycard-integration.md). Observed results: docs/m0-findings.md, docs/m1-findings.md.
+Status: M2. fleet-api and the credential broker run in LOCAL-ONLY mode until Keycard is available (docs/decisions/0002-keycard-integration.md). Observed results: docs/m0-findings.md, docs/m1-findings.md, docs/failure-semantics.md (failure demos).
 
 ```powershell
 .venv\Scripts\python.exe -m pip install -e ".[dev]"
-.\scripts\start-stack.ps1
+.\scripts\start-stack.ps1 -WithWorker
 .venv\Scripts\python.exe -m pytest
-.venv\Scripts\python.exe -m gax.worker
+.venv\Scripts\gax.exe demo list
+.venv\Scripts\gax.exe demo run all
 ```
 
-In another terminal:
+`scripts\start-worker.ps1` / `scripts\stop-worker.ps1` run the worker detached (log `.gax\logs\worker.log`, launcher and real PID in `.gax\pids\worker.pid`).
+
+Manual runs:
 
 ```powershell
 .venv\Scripts\gax.exe ingest
@@ -24,3 +27,5 @@ In another terminal:
 .venv\Scripts\gax.exe fleet counters
 .\scripts\stop-stack.ps1
 ```
+
+`stop-stack.ps1` also stops the worker.
