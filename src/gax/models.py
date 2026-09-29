@@ -77,5 +77,8 @@ class LedgerEntry(BaseModel):
     attempt: int = Field(ge=1)
     status: Literal["PENDING", "APPLIED", "FAILED"]
     credential_mode: str
+    run_id: Optional[str] = None
+    outcome: Optional[str] = None
+    error: Optional[str] = None
     response: Optional[dict[str, Any]] = None
     at: datetime = Field(default_factory=utcnow)

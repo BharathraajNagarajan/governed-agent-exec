@@ -17,8 +17,7 @@ def ingest(mongo, embedder, corpus_dir):
         return await env.client.execute_workflow(IngestWorkflow.run, IngestInput(corpus_dir=str(corpus_dir), batch_tokens=800),
                                                  id=f"ingest-{uuid.uuid4().hex}", task_queue=queue)
 
-    return run_with_worker(body, [IngestWorkflow], [acts.load_corpus, acts.ensure_index, acts.plan_ingest, acts.embed_batch,
-                                                    acts.delete_stale, acts.activate])
+    return run_with_worker(body, [IngestWorkflow], acts.all())
 
 
 def search_until(mongo, embedder, query, timeout=60):

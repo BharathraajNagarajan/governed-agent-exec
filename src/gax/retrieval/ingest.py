@@ -48,6 +48,9 @@ class IngestActivities:
         self.db = db
         self.embedder = embedder
 
+    def all(self) -> list:
+        return [self.load_corpus, self.ensure_index, self.plan_ingest, self.embed_batch, self.delete_stale, self.activate]
+
     @activity.defn
     def load_corpus(self, corpus_dir: str) -> list[Chunk]:
         return load_corpus(corpus_dir)
