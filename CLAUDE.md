@@ -1,8 +1,8 @@
 # Project Rules
 
 - Thesis: governed, durable execution of AI-proposed actions. Retrieval is supporting context only.
-- Current phase: M2. Code lives in src/, tests/, fleet_api/, scripts/, corpus/. spikes/ is frozen reference; do not modify it.
-- Frozen until M1 and M2 pass: Kafka, Kubernetes, MCP, multi-agent frameworks, frontend, cloud deployment.
+- Current phase: M3 (M1 and M2 passed): portfolio polish, documentation only. Code lives in src/, tests/, fleet_api/, scripts/, corpus/. spikes/ is frozen reference; do not modify it.
+- Still frozen (no new features in M3): Kafka, Kubernetes, MCP, multi-agent frameworks, frontend, cloud deployment.
 - Failure demonstrations are core functionality.
 - Never claim something works unless it was executed. Report failures accurately.
 - Minimal code, no comments. Do not restructure working code unless necessary.
