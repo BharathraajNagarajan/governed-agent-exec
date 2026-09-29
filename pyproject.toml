@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gax"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "temporalio==1.33.0",
+    "pymongo==4.18.2",
+    "httpx==0.28.1",
+    "python-dotenv==1.2.3",
+    "anthropic==1.9.0",
+    "pydantic==2.13.5",
+    "fastapi==0.142.0",
+    "uvicorn==0.54.0",
+    "PyJWT==2.15.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = "-ra --strict-markers"
+markers = ["integration: requires atlas-local on localhost:27017 and starts fleet-api"]
