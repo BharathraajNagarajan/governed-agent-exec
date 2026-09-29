@@ -2,6 +2,28 @@
 
 An LLM is good at reading an incident and proposing a fix. It should not be the thing that decides whether the fix runs, holds the credentials, or is trusted to have done it exactly once. In this project, Claude proposes a remediation action for a simulated streaming platform. Deterministic, versioned policy code decides whether the action is allowed, needs a human approval, or is denied. Temporal executes it durably: each attempt gets its own short-lived credential and sends an `Idempotency-Key`, so a crash or a lost response cannot apply it twice. The result is then verified against the target system's state and written to an audit record. Retrieval (Voyage embeddings and rerank over MongoDB vector search) only gives the proposer context. It never authorizes anything.
 
+## How this project started
+
+On 2026-09-15 I attended "Builder After Hours: Durable Agents with MongoDB, Temporal & Keycard" in San Francisco, a developer meetup with speakers from MongoDB, Temporal and Keycard. The talks showed durable ingestion with Temporal, Voyage and MongoDB Atlas. They killed a worker without losing the workflow. Keycard minted per-activity credentials through a Temporal interceptor. A Cedar policy denied the worker's MongoDB credential live. A versioned knowledge index was switched with an active pointer.
+
+Afterwards I checked the current docs, found the public reference repo [mongodb-developer/mdb-temporal-keycard](https://github.com/mongodb-developer/mdb-temporal-keycard), and ran verification spikes ([docs/m0-findings.md](docs/m0-findings.md)).
+
+The event's examples ingest data and read it. This repo governs **write** actions instead. It has parameter-level policy, human approval with a durable timeout, idempotent side effects with a per-attempt ledger, outcome verification, and 12 live failure demos.
+
+| Event concept | This repo | Evidence |
+|---|---|---|
+| Worker-kill recovery | `execute_action` retried on a new worker, applied once | demos `worker_kill`, `approval_worker_restart` |
+| LLM calls as activities | `propose_action` is a Temporal activity | `test_staging_restart_verified_once_and_no_credential_in_history`; [m1-findings Part 2](docs/m1-findings.md#part-2-remediationworkflow) |
+| Content-hash idempotent ingestion | sha256 per chunk; unchanged chunks skipped | `test_ingest_skips_unchanged_and_search_finds_runbook`; [m1-findings Part 1](docs/m1-findings.md#part-1-retrieval) |
+| Voyage embed + rerank on vector search | Runbook retrieval for the proposer | [m1-findings Part 1](docs/m1-findings.md#part-1-retrieval); demo `voyage_429` |
+| Deterministic deny-by-default policy | Deterministic `policy-v1` table. Nothing is allowed by default: unknown actions fail schema validation (NEEDS_HUMAN), and missing or out-of-range params are DENY | `test_table_cells`, `test_scale_boundaries`, `test_deterministic`; demos `policy_deny`, `llm_malformed` |
+| Per-activity short-lived credentials | LOCAL-ONLY broker, fresh JWT per activity attempt | `test_short_ttl_expires_in_real_time`; demo `credential_transient` |
+| Policy denial at execution time | Revoked grant makes `execute_action` fail non-retryably | demo `credential_denied`; `test_revoke_denies_and_restore_allows` |
+| Keycard | **Pending** account; not integrated | [ADR 0002](docs/decisions/0002-keycard-integration.md) |
+| Blue/green embedding migration | **Not implemented**; `retrieval_config` holds a `v1` active pointer only | `src/gax/retrieval/store.py` (`set_active`, `get_active`) |
+
+Independent personal project; not affiliated with or endorsed by MongoDB, Temporal, or Keycard.
+
 ## Architecture
 
 ```mermaid
@@ -116,14 +138,7 @@ For production I would put the credential layer on Keycard (or another workload-
 
 ## Credit
 
-This project was inspired by concepts from [mongodb-developer/mdb-temporal-keycard](https://github.com/mongodb-developer/mdb-temporal-keycard). That reference architecture combines Temporal, MongoDB Atlas, Voyage and Keycard for a durable RAG ingestion pipeline and a read-only research agent, with per-activity just-in-time credentials. The differences in this project:
-
-- It executes **write actions** against an external system.
-- **Policy is evaluated at the parameter level** by deterministic, versioned code before anything runs.
-- Some actions need **human approval** with a durable timeout.
-- **Side effects are idempotent**, keyed per incident, with a per-attempt ledger.
-- **Outcomes are verified** against the target system's state.
-- Twelve **failure demos** check their own evidence.
+This project was inspired by concepts from [mongodb-developer/mdb-temporal-keycard](https://github.com/mongodb-developer/mdb-temporal-keycard). That reference architecture combines Temporal, MongoDB Atlas, Voyage and Keycard for a durable RAG ingestion pipeline and a read-only research agent, with per-activity just-in-time credentials. How this project differs is described in [How this project started](#how-this-project-started).
 
 ## Status
 

@@ -8,6 +8,7 @@ Evidence types:
 - **findings**: an entry in docs/m0-findings.md, docs/m1-findings.md or docs/failure-semantics.md.
 - **M3 run**: a command executed during this audit (see "Commands verified in M3" below).
 - **code**: inspection only, with no test or demo. These rows are listed so the gap is visible.
+- **author**: the author's own account (event attendance, talk content, affiliation). Nothing in the repo can verify it.
 
 ## Thesis
 
@@ -21,6 +22,27 @@ Evidence types:
 | 6 | The result is verified against the target system's state | `test_staging_restart_...` (verification expected 1, observed 1); m1-findings INC-M1-001 | test, findings |
 | 7 | The result is written to an audit record | `test_staging_restart_...` (audit detail asserted); demo `mongo_down` check "audit record exists" | test, demo |
 | 8 | Retrieval never authorizes anything | `evaluate_policy` takes only the `ActionProposal` (`src/gax/policy/rules.py`); demos run with `retrieve=False` and are still governed | code, demo |
+
+## How this project started
+
+| # | Claim | Evidence | Type |
+|---|---|---|---|
+| 71 | Attended "Builder After Hours: Durable Agents with MongoDB, Temporal & Keycard", San Francisco, 2026-09-15, with speakers from MongoDB, Temporal and Keycard | Author's attendance. No artifact in the repo. | author |
+| 72 | The talks showed durable ingestion (Temporal + Voyage + Atlas), a worker kill without losing the workflow, Keycard per-activity credentials through a Temporal interceptor, a live Cedar denial of the worker's MongoDB credential, and a versioned index with an active pointer | Author's account of public talk content. Not reproduced in this repo. | author |
+| 73 | Current docs were checked afterwards | Author's account; versions actually run are recorded in m0-findings "Versions" | author, findings |
+| 74 | The public reference repo is mongodb-developer/mdb-temporal-keycard | Repository README, fetched 2026-09-29 (same source as row 68) | external |
+| 75 | Verification spikes were run | m0-findings summary: M0.1–M0.4 PASS, M0.5 PENDING ACCOUNT | findings |
+| 76 | Differences: write actions, parameter-level policy, approval with durable timeout, idempotent side effects with a per-attempt ledger, outcome verification, 12 live failure demos | rows 2, 5, 6, 11, 23, 38, 53 | test, demo |
+| 77 | Worker-kill recovery: retried on a new worker, applied once | demos `worker_kill`, `approval_worker_restart` (rows 40, 46a) | demo |
+| 78 | `propose_action` (the LLM call) is a Temporal activity | `@activity.defn` in `src/gax/remediation/activities.py`; `test_staging_restart_...` asserts it in the scheduled-activity list; m1-findings INC-M1-001 | code, test, findings |
+| 79 | Ingestion is content-hash idempotent | `test_ingest_skips_unchanged_and_search_finds_runbook` (64-char hash, second ingest embeds 0, one edit re-embeds 1); m1-findings Part 1 | test, findings |
+| 80 | Voyage embed + rerank on vector search | m1-findings Part 1 (real ingest and reranked search); demo `voyage_429` (embed and rerank 200) | findings, demo |
+| 81 | Policy is deterministic and never allows by default: unknown actions fail schema validation (NEEDS_HUMAN); missing or out-of-range params are DENY | `rules.py` (missing `replicas` → DENY); `test_table_cells`, `test_scale_boundaries`, `test_deterministic`; demos `policy_deny`, `llm_malformed` | code, test, demo |
+| 82 | Per-activity short-lived credentials (LOCAL-ONLY) | row 3 | test, demo |
+| 83 | Denial at execution time via revoked grant | row 56; `test_revoke_denies_and_restore_allows` | demo, test |
+| 84 | Keycard pending, not integrated | row 59 | findings |
+| 85 | Blue/green embedding migration not implemented; `retrieval_config` holds a `v1` active pointer only | `store.set_active` / `get_active` (single `_id: "active"` document); `test_ingest_skips_unchanged_...` asserts active version `v1`; no code switches versions | code, test |
+| 86 | Not affiliated with or endorsed by MongoDB, Temporal, or Keycard | Author's statement | author |
 
 ## Architecture
 
@@ -117,7 +139,7 @@ Evidence types:
 | # | Claim | Evidence | Type |
 |---|---|---|---|
 | 68 | mdb-temporal-keycard is a durable RAG ingestion pipeline plus a read-only research agent with per-activity Keycard credentials | Repository README, fetched 2026-09-29 | external |
-| 69 | This project adds write actions, parameter-level policy, approval, idempotency, verification and failure demos | rows 2, 5, 6, 11, 23, 38 | test, demo |
+| 69 | This project adds write actions, parameter-level policy, approval, idempotency, verification and failure demos (now stated in "How this project started"; Credit links there) | row 76 | test, demo |
 | 70 | Personal project, September 2026, local-only, Keycard pending | git log (all commits in 2026-09); ADR 0002 | findings |
 
 ## Claims removed or reworded during the audit
