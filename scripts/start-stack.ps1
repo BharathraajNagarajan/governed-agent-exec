@@ -1,4 +1,4 @@
-param([int]$FleetPort = 8081)
+param([int]$FleetPort = 8081, [switch]$WithWorker)
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $State = Join-Path $Root ".gax"
@@ -79,3 +79,4 @@ if (Get-TrackedProcess "fleet-api") {
 }
 Wait-Until "fleet-api ($FleetPort)" { Test-FleetHealthy } 30
 Write-Host "stack up. Temporal UI http://localhost:8233  fleet-api http://127.0.0.1:$FleetPort (LOCAL-ONLY auth)"
+if ($WithWorker) { & (Join-Path $PSScriptRoot "start-worker.ps1") }

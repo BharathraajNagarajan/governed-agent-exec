@@ -3,6 +3,8 @@ $Root = Split-Path -Parent $PSScriptRoot
 $Pids = Join-Path $Root ".gax\pids"
 $Container = "gae-atlas-local"
 
+& (Join-Path $PSScriptRoot "stop-worker.ps1")
+
 foreach ($name in "fleet-api", "temporal") {
     $file = Join-Path $Pids "$name.pid"
     if (-not (Test-Path $file)) { Write-Host "$name not tracked"; continue }
