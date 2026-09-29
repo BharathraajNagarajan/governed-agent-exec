@@ -70,7 +70,7 @@ Evidence types:
 
 | # | Claim | Evidence | Type |
 |---|---|---|---|
-| 38 | All 11 demos in the recorded run passed on 2026-09-29; `approval_worker_restart` was run on its own afterwards (PASS 11/11) | failure-semantics "Observed run" table; `.gax/demo-results/summary.json`, `.gax/demo-results/approval_worker_restart.json` | findings, demo |
+| 38 | All 12 demos passed in a single `gax demo run all` on 2026-09-29 (257.9 s total; worker_kill 34.0 s 9/9, fleet_5xx 4.2 s 7/7, response_lost 2.4 s 7/7, credential_denied 4.8 s 9/9, credential_transient 5.5 s 8/8, policy_deny 0.7 s 7/7, approval_timeout 9.1 s 7/7, approval_worker_restart 26.1 s 11/11, llm_malformed 0.4 s 6/6, voyage_429 66.3 s 7/7, mongo_down 32.2 s 10/10, duplicate_start 55.9 s 7/7) | failure-semantics "Observed run" table; `.gax/demo-results/summary.json`, `.gax/demo-results/run-all.log` | findings, demo |
 | 39 | Every demo scans its histories and the worker log for credential material | failure-semantics intro; every demo has the check "no credential material in workflow history or worker log"; `test_demos.py::test_secret_hits` | findings, demo, test |
 | 40 | `worker_kill` row | failure-semantics §1; checks "execute_action retried after start_to_close timeout", "attempt 2 outcome REPLAYED or APPLIED", "restart_count increased exactly once" | findings, demo |
 | 41 | `fleet_5xx` row | failure-semantics §2; check "ledger attempts HTTP_500, HTTP_500, APPLIED" | findings, demo |

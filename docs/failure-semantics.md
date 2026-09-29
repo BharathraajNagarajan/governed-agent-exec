@@ -37,23 +37,22 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 
 ## Observed run
 
-`gax demo run all`, 2026-09-29, host Windows 11, Temporal CLI 1.9.1, temporalio 1.33.0, atlas-local `preview`. Total 175.9 s as measured by the runner (197.4 s wall clock including worker start and stop). Log: `.gax/demo-results/run-all.log`.
+`gax demo run all`, 2026-09-29, host Windows 11, Temporal CLI 1.9.1, temporalio 1.33.0, atlas-local `preview`. All 12 demos passed in one run. Total 257.9 s as measured by the runner (285.2 s wall clock including worker start and stop). Log: `.gax/demo-results/run-all.log`.
 
 | Demo | Result | Seconds | Checks |
 |---|---|---|---|
-| worker_kill | PASS | 33.9 | 9/9 |
-| fleet_5xx | PASS | 4.7 | 7/7 |
-| response_lost | PASS | 2.2 | 7/7 |
-| credential_denied | PASS | 1.7 | 9/9 |
-| credential_transient | PASS | 4.4 | 8/8 |
-| policy_deny | PASS | 0.8 | 7/7 |
-| approval_timeout | PASS | 7.2 | 7/7 |
-| llm_malformed | PASS | 0.5 | 6/6 |
-| voyage_429 | PASS | 65.2 | 7/7 |
-| mongo_down | PASS | 22.3 | 10/10 |
-| duplicate_start | PASS | 21.4 | 7/7 |
-
-`approval_worker_restart` was added after that run. It was run on its own on 2026-09-29 (`gax demo run approval_worker_restart`): PASS, 19.5 s, 11/11. Log: `.gax/demo-results/approval_worker_restart.log`.
+| worker_kill | PASS | 34.0 | 9/9 |
+| fleet_5xx | PASS | 4.2 | 7/7 |
+| response_lost | PASS | 2.4 | 7/7 |
+| credential_denied | PASS | 4.8 | 9/9 |
+| credential_transient | PASS | 5.5 | 8/8 |
+| policy_deny | PASS | 0.7 | 7/7 |
+| approval_timeout | PASS | 9.1 | 7/7 |
+| approval_worker_restart | PASS | 26.1 | 11/11 |
+| llm_malformed | PASS | 0.4 | 6/6 |
+| voyage_429 | PASS | 66.3 | 7/7 |
+| mongo_down | PASS | 32.2 | 10/10 |
+| duplicate_start | PASS | 55.9 | 7/7 |
 
 ## 1. worker_kill
 
