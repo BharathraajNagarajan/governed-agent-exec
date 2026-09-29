@@ -10,6 +10,7 @@ from temporalio.exceptions import WorkflowAlreadyStartedError
 from temporalio.service import RPCError
 from gax.credentials import LocalOnlyCredentialBroker
 from gax.credentials.local_only_broker import GRANTS_COLLECTION, MongoGrantStore
+from gax.demos.harness import final_attempt, summarize_history
 from gax.models import ActionParams, ActionProposal, Incident
 from gax.remediation.activities import AUDIT, INCIDENTS, LEDGER, RemediationActivities
 from gax.remediation.types import ApprovalInput, RemediationInput
@@ -292,9 +293,12 @@ def test_fleet_5xx_and_lost_response_apply_exactly_once(mongo):
     h.fleet.drop_next = 1
 
     async def body(env, queue):
-        return await outcome(await start(env, queue, inp))
+        handle = await start(env, queue, inp)
+        return await outcome(handle), summarize_history((await handle.fetch_history()).events)
 
-    assert h.run(body) == "VERIFIED"
+    status, history = h.run(body)
+    assert status == "VERIFIED"
+    assert final_attempt(history, "execute_action")["last_failure"] == "fleet-api transport error: RemoteProtocolError"
     rows = h.ledger(inp.incident.incident_id)
     assert [(r["attempt"], r["outcome"]) for r in rows] == [(1, "HTTP_500"), (2, "TRANSPORT_ERROR"), (3, "REPLAYED")]
     assert h.orders()["restart_count"] == 1

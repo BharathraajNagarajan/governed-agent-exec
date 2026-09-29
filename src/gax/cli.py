@@ -141,6 +141,16 @@ async def cmd_fleet(s, a):
             out(r.json())
 
 
+async def cmd_demo(s, a):
+    from gax.demos import DEMOS
+    if a.op == "list":
+        for name, module in DEMOS.items():
+            print(f"{name:22} {module.TITLE}")
+        return 0
+    from gax.demos.runner import run
+    return await run(a.name, s)
+
+
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="gax")
     sub = p.add_subparsers(dest="command", required=True)
@@ -189,6 +199,12 @@ def parser() -> argparse.ArgumentParser:
         if name == "transient":
             c.add_argument("--count", type=int)
         c.set_defaults(fn=cmd_broker)
+
+    demo = sub.add_parser("demo").add_subparsers(dest="op", required=True)
+    demo.add_parser("list").set_defaults(fn=cmd_demo)
+    c = demo.add_parser("run")
+    c.add_argument("name")
+    c.set_defaults(fn=cmd_demo)
 
     fleet = sub.add_parser("fleet").add_subparsers(dest="op", required=True)
     c = fleet.add_parser("faults")
