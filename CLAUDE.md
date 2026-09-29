@@ -9,7 +9,7 @@
 - Never read, print, or commit secrets. Keys live in .env only.
 - Environment is Windows + PowerShell; give PowerShell commands.
 - You cannot activate the venv. Always call .venv\Scripts\python.exe directly.
-- Long-running processes (Temporal server, workers) and kill demos are run by me in my own terminal.
+- Claude Code may run the Temporal server, workers and kill demos as background processes and must stop them afterward. Kill demos target the real worker PID printed on startup, not the venv launcher PID.
 - Git: show each command before running it. Never force-push.
 - Commits: the repository owner is the only author. Never add Co-Authored-By or any Claude/AI attribution to commit messages.
 - Small increments; explain what was built and what I should observe.
