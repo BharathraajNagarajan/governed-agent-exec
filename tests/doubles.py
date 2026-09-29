@@ -101,9 +101,11 @@ class ProposerTestDouble:
     def __init__(self, *outcomes):
         self.outcomes = list(outcomes)
         self.calls = 0
+        self.contexts: list[list[dict]] = []
 
     def __call__(self, incident, chunks):
         self.calls += 1
+        self.contexts.append(chunks)
         outcome = self.outcomes[min(self.calls, len(self.outcomes)) - 1]
         if isinstance(outcome, str):
             parse_proposal(outcome)
@@ -118,3 +120,13 @@ class SearchTestDouble:
         self.queries.append(query)
         return [SearchHit(chunk_id="consumer-lag-no-active-members#remediation", source="consumer-lag-no-active-members.md",
                           heading="Remediation", text="Restart the consumer with restart_consumer.", vector_score=0.9, rerank_score=0.8)]
+
+
+class FailingSearchTestDouble:
+    def __init__(self, error: Exception):
+        self.error = error
+        self.calls = 0
+
+    def __call__(self, query, k, rerank):
+        self.calls += 1
+        raise self.error

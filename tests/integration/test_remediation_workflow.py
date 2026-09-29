@@ -14,8 +14,9 @@ from gax.demos.harness import final_attempt, summarize_history
 from gax.models import ActionParams, ActionProposal, Incident
 from gax.remediation.activities import AUDIT, INCIDENTS, LEDGER, RemediationActivities
 from gax.remediation.types import ApprovalInput, RemediationInput
+from gax.retrieval import RetrievalNotReady
 from gax.workflows import INCIDENT_ID_REUSE, RemediationWorkflow
-from tests.doubles import FleetApiTestDouble, ProposerTestDouble, SearchTestDouble
+from tests.doubles import FailingSearchTestDouble, FleetApiTestDouble, ProposerTestDouble, SearchTestDouble
 from tests.integration.conftest import TEST_KEY
 from tests.temporal_env import run_with_worker
 
@@ -35,14 +36,14 @@ def remediation_input(environment="staging", injected=None, timeout=600) -> Reme
 
 
 class Harness:
-    def __init__(self, mongo, proposer=None):
+    def __init__(self, mongo, proposer=None, search=None):
         for name in (LEDGER, AUDIT, INCIDENTS, GRANTS_COLLECTION):
             mongo[name].delete_many({})
         self.db = mongo
         self.broker = LocalOnlyCredentialBroker(TEST_KEY, store=MongoGrantStore(mongo[GRANTS_COLLECTION]))
         self.fleet = FleetApiTestDouble(TEST_KEY)
         self.proposer = proposer or ProposerTestDouble(proposal())
-        self.search = SearchTestDouble()
+        self.search = search or SearchTestDouble()
         http = httpx.Client(base_url="http://fleet.test", transport=self.fleet.transport())
         self.acts = RemediationActivities(mongo, self.broker, http, self.proposer, self.search)
 
@@ -234,6 +235,31 @@ def test_malformed_proposal_needs_human_after_three_bounded_attempts(mongo):
     d = h.audit(inp.incident.incident_id)[0]["detail"]
     assert d["proposal_error"]["type"] == "MalformedProposal"
     assert len(d["proposal_error"]["details"][0]) == 3
+
+
+def test_retrieval_error_proposes_with_empty_context_and_policy_still_gates(mongo):
+    h = Harness(mongo, search=FailingSearchTestDouble(RetrievalNotReady("retrieval_config has no active version; run ingest first")))
+    inp = remediation_input()
+
+    async def body(env, queue):
+        handle = await start(env, queue, inp)
+        return await outcome(handle), summarize_history((await handle.fetch_history()).events)
+
+    status, history = h.run(body)
+    assert status == "VERIFIED"
+    assert h.search.calls == 1
+    [failure] = history["failures"]
+    assert (failure["activity"], failure["type"], failure["retry_state"]) == (
+        "retrieve_context", "RetrievalNotReady", "RETRY_STATE_NON_RETRYABLE_FAILURE")
+    assert history["scheduled"] == ["retrieve_context", "propose_action", "evaluate_policy", "snapshot_state", "execute_action", "verify_outcome",
+                                    "record_audit"]
+    assert (h.proposer.calls, h.proposer.contexts) == (1, [[]])
+    d = h.audit(inp.incident.incident_id)[0]["detail"]
+    assert d["retrieval_error"]["type"] == "RetrievalNotReady"
+    assert "no active version" in d["retrieval_error"]["message"]
+    assert d["context"] == []
+    assert (d["decision"]["decision"], d["policy_version"]) == ("ALLOW", "policy-v1")
+    assert h.orders()["restart_count"] == 1
 
 
 def test_injected_malformed_proposal_needs_human(mongo):
