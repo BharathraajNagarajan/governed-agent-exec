@@ -1,5 +1,18 @@
 # Durable & Governed Agent Execution
 
+## At a glance
+
+- Claude proposes incident-remediation actions; deterministic, versioned policy decides; Temporal executes them durably with per-attempt credentials, idempotency keys, outcome verification and an audit record.
+- 12/12 failure demos (worker kill, lost response, revoked credential, Mongo down and more) pass in one live `gax demo run all` against the real stack: [docs/evidence/](docs/evidence/).
+- 108 tests (unit and integration, pytest).
+- Stack: Temporal, MongoDB atlas-local with Vector Search, Voyage AI (embed and rerank), Claude (structured output), FastAPI, Python 3.12.
+- The credential layer is LOCAL-ONLY, behind the interface Keycard would satisfy; Keycard integration is pending ([ADR 0002](docs/decisions/0002-keycard-integration.md)).
+- Personal project, September 2026; runs locally only.
+
+![gax demo run all summary table: 12 demos PASS, 169.8 s total](docs/images/demo-run-all.png)
+
+*`gax demo run all` on 2026-09-29: all 12 failure demos PASS with every check passing, 169.8 s total.*
+
 An LLM is good at reading an incident and proposing a fix. It should not be the thing that decides whether the fix runs, holds the credentials, or is trusted to have done it exactly once. In this project, Claude proposes a remediation action for a simulated streaming platform. Deterministic, versioned policy code decides whether the action is allowed, needs a human approval, or is denied. Temporal executes it durably: each attempt gets its own short-lived credential and sends an `Idempotency-Key`, so a crash or a lost response cannot apply it twice. The result is then verified against the target system's state and written to an audit record. Retrieval (Voyage embeddings and rerank over MongoDB vector search) only gives the proposer context. It never authorizes anything.
 
 ## How this project started
@@ -67,6 +80,44 @@ Temporal history is the authority on execution. MongoDB holds retrieval data, do
 | Credential broker (LOCAL-ONLY) | Short-lived JWT per activity attempt, never stored in workflow state | Acting after access is revoked; credentials leaking into history, logs or the LLM | demos `credential_denied`, `credential_transient`; `test_staging_restart_verified_once_and_no_credential_in_history`, `test_revoke_denies_and_restore_allows` |
 | fleet-api | Simulated target system with `Idempotency-Key`, JWT validation and fault injection | Double-applying a non-idempotent action on retry or after a lost response | demos `fleet_5xx`, `response_lost`; `test_idempotency_dedupe`, `test_concurrent_duplicates_apply_once`, `test_commit_then_drop_applies_exactly_once` |
 
+## Design decisions I made
+
+- **Two authorization layers, not a credential issuer alone.** Versioned policy code decides on action, environment and parameters; a per-attempt credential decides who may call fleet-api at all. Rejected: relying on the credential issuer only, because it never sees the proposal and cannot express "`scale_consumer` only for 1..10 replicas" or "DENY in prod". [ADR 0001](docs/decisions/0001-authorization-layering.md)
+- **A LOCAL-ONLY broker behind the Keycard interface.** It signs short-lived JWTs with a local key, raises the same `CredentialDenied` (non-retryable) and `CredentialUnavailable` (retryable) errors, is labelled LOCAL-ONLY in logs and audit records, and is never used when `KEYCARD_ZONE_URL` is set. Rejected: blocking the credential work on the pending Keycard account. [ADR 0002](docs/decisions/0002-keycard-integration.md)
+- **One structured proposal per incident, not an agent framework.** `propose_action` is a single Temporal activity that returns one Pydantic-validated `ActionProposal`, with bounded retries and then NEEDS_HUMAN. Rejected: multi-agent setups, listed as out of scope in [docs/design.md](docs/design.md#out-of-scope-until-m1-and-m2-pass). Demo `llm_malformed` shows an out-of-schema action stopping before any fleet request.
+- **A per-attempt ledger next to Temporal history.** Every `execute_action` attempt writes its own `action_ledger` row. Rejected: relying on history alone, because it records only the final attempt's `ActivityTaskStarted`, so a killed attempt appears only as `lastFailure`. [m0-findings finding 2](docs/m0-findings.md#findings); demo `worker_kill` (ledger `[PENDING, REPLAYED]`).
+- **Idempotency key per incident id.** `execute_action` sends `<workflow_id>:execute_action`, and fleet-api stores the response in the same Mongo transaction as the state change. Rejected for now: a per-run key, which would let a rerun of a failed incident apply the action again. [failure-semantics "Idempotency"](docs/failure-semantics.md#idempotency)
+- **Retrieval failure proceeds without context.** The workflow records `retrieval_error` and proposes with an empty context, and policy still gates the action. Rejected: failing the run, because retrieval is supporting context and never authorizes anything. [src/gax/workflows.py](src/gax/workflows.py#L88-L95); `test_retrieval_error_proposes_with_empty_context_and_policy_still_gates` in [tests/integration/test_remediation_workflow.py](tests/integration/test_remediation_workflow.py).
+- **Self-verifying failure demos on the live stack, not only mocks.** Each demo injects its fault and checks Temporal history, the ledger, fleet-api counters and the worker log. Rejected: mock-only failure tests; the mock-transport test missed the server's "Failure exceeds size limit." truncation that the live demo exposed. [failure-semantics finding 1](docs/failure-semantics.md#findings)
+- **Blue/green embedding migration deferred.** `retrieval_config` holds a single `v1` active pointer and nothing switches versions. Rejected for now: building the migration, because the thesis is governed execution and retrieval is supporting context ([docs/design.md](docs/design.md#thesis)). `src/gax/retrieval/store.py` (`set_active`, `get_active`).
+
+## Failure matrix
+
+Each row is a demo that runs against the live stack and checks its evidence (Temporal history, ledger, fleet-api counters, fleet state, worker log). Every demo also scans its workflow histories and worker log for credential material. Full details are in [docs/failure-semantics.md](docs/failure-semantics.md). The observed results below come from a single recorded `gax demo run all` on 2026-09-29, where all 12 demos passed (169.8 s total; per-demo seconds and checks in the "Observed run" table; result files in [docs/evidence/](docs/evidence/), with `policy_deny.json` from a standalone rerun the same day).
+
+| Demo | What breaks | What the system does | Observed |
+|---|---|---|---|
+| `worker_kill` | Worker process hard-killed while `execute_action` is in flight | Temporal times out the attempt and retries on a new worker with the same Idempotency-Key | lastFailure `activity StartToClose timeout`, ledger `[PENDING, REPLAYED]`, `restart_count` 0 → 1 |
+| `fleet_5xx` | fleet-api returns 500 twice | Retryable `FleetUnavailable` | ledger `[HTTP_500, HTTP_500, APPLIED]`, one state change |
+| `response_lost` | fleet-api commits, then drops the response | Retry with the same key; fleet-api replays the stored response | ledger `[TRANSPORT_ERROR, REPLAYED]`, `restart_count` 0 → 1 |
+| `credential_denied` | Grant revoked | Non-retryable `CredentialDenied`, run ends CREDENTIAL_DENIED; after restore, the same incident id reruns | 1 attempt, 0 restart requests; rerun VERIFIED |
+| `credential_transient` | Broker unavailable twice | Retryable; credential requested fresh on every attempt | ledger `[CREDENTIAL_UNAVAILABLE ×2, APPLIED]`, 1 restart request |
+| `policy_deny` | LLM-style proposal: prod `reset_consumer_offset` | Policy DENY before any fleet call | DENIED, fleet counters `{}`, prod offset 1000 → 1000 |
+| `approval_timeout` | Nobody approves `pause_pipeline` | Durable timer ends APPROVAL_TIMEOUT; late approval rejected | nothing executed; reject path executes nothing; approve path executes once |
+| `approval_worker_restart` | Worker process hard-killed while `pause_pipeline` awaits approval | A new worker replays history and accepts the approval Update | Update accepted on the new worker's pid, nothing re-proposed, ledger `[APPLIED]`, `pause_pipeline=1`, audit record, VERIFIED |
+| `llm_malformed` | Proposal with action `drop_topic` | Pydantic validation fails, run ends NEEDS_HUMAN | 0 fleet requests |
+| `voyage_429` | Voyage free-tier rate limit exhausted | Client backoff 2/4/8 s plus a sliding-window limiter | real 429s, then embed and rerank 200, run VERIFIED |
+| `mongo_down` | atlas-local stopped after approval | Mongo errors become compact retryable `MongoUnavailable` | `snapshot_state` attempt 3, then VERIFIED with an audit record |
+| `duplicate_start` | Same incident id started while running and after completion | `ALLOW_DUPLICATE_FAILED_ONLY` rejects both | exit 2 twice, one run, one state change |
+
+![Temporal UI: execute_action attempt 2 on the new worker with lastFailure activity StartToClose timeout](docs/images/temporal-worker-kill.png)
+
+*`worker_kill` in the Temporal UI (workflow `DEMO-WORKER-KILL-20260929165525`): `execute_action` attempt 2 started on the new worker (pid 25300) with lastFailure `activity StartToClose timeout` left by the killed attempt 1.*
+
+![gax demo run policy_deny: PASS, 0.9 s, 7/7](docs/images/policy-deny.png)
+
+*Standalone `gax demo run policy_deny` rerun on 2026-09-29: PASS, 7/7 checks, 0.9 s.*
+
 ## Quickstart
 
 Prerequisites: Windows with PowerShell, Python 3.12 with a venv at `.venv`, Docker Desktop, Temporal CLI (set `TEMPORAL_CLI` or put `temporal` on PATH).
@@ -96,25 +147,6 @@ Prerequisites: Windows with PowerShell, Python 3.12 with a venv at `.venv`, Dock
 - `stop-stack.ps1` stops the worker, fleet-api, Temporal and the container.
 
 Other commands: `gax search "<query>"`, `gax status <id>`, `gax approve|reject <id> --by <name>`, `gax broker revoke|restore|transient --action <action>`, `gax fleet faults|counters|reset|state`, `gax demo list`. `scripts\start-worker.ps1` and `scripts\stop-worker.ps1` manage the worker on its own (log `.gax\logs\worker.log`, launcher and real PID in `.gax\pids\worker.pid`). Tests: `.venv\Scripts\python.exe -m pytest`. The integration tests need atlas-local on `localhost:27017`.
-
-## Failure matrix
-
-Each row is a demo that runs against the live stack and checks its evidence (Temporal history, ledger, fleet-api counters, fleet state, worker log). Every demo also scans its workflow histories and worker log for credential material. Full details are in [docs/failure-semantics.md](docs/failure-semantics.md). The observed results below come from a single recorded `gax demo run all` on 2026-09-29, where all 12 demos passed (169.8 s total; per-demo seconds and checks in the "Observed run" table; result files in [docs/evidence/](docs/evidence/), with `policy_deny.json` from a standalone rerun the same day).
-
-| Demo | What breaks | What the system does | Observed |
-|---|---|---|---|
-| `worker_kill` | Worker process hard-killed while `execute_action` is in flight | Temporal times out the attempt and retries on a new worker with the same Idempotency-Key | lastFailure `activity StartToClose timeout`, ledger `[PENDING, REPLAYED]`, `restart_count` 0 → 1 |
-| `fleet_5xx` | fleet-api returns 500 twice | Retryable `FleetUnavailable` | ledger `[HTTP_500, HTTP_500, APPLIED]`, one state change |
-| `response_lost` | fleet-api commits, then drops the response | Retry with the same key; fleet-api replays the stored response | ledger `[TRANSPORT_ERROR, REPLAYED]`, `restart_count` 0 → 1 |
-| `credential_denied` | Grant revoked | Non-retryable `CredentialDenied`, run ends CREDENTIAL_DENIED; after restore, the same incident id reruns | 1 attempt, 0 restart requests; rerun VERIFIED |
-| `credential_transient` | Broker unavailable twice | Retryable; credential requested fresh on every attempt | ledger `[CREDENTIAL_UNAVAILABLE ×2, APPLIED]`, 1 restart request |
-| `policy_deny` | LLM-style proposal: prod `reset_consumer_offset` | Policy DENY before any fleet call | DENIED, fleet counters `{}`, prod offset 1000 → 1000 |
-| `approval_timeout` | Nobody approves `pause_pipeline` | Durable timer ends APPROVAL_TIMEOUT; late approval rejected | nothing executed; reject path executes nothing; approve path executes once |
-| `approval_worker_restart` | Worker process hard-killed while `pause_pipeline` awaits approval | A new worker replays history and accepts the approval Update | Update accepted on the new worker's pid, nothing re-proposed, ledger `[APPLIED]`, `pause_pipeline=1`, audit record, VERIFIED |
-| `llm_malformed` | Proposal with action `drop_topic` | Pydantic validation fails, run ends NEEDS_HUMAN | 0 fleet requests |
-| `voyage_429` | Voyage free-tier rate limit exhausted | Client backoff 2/4/8 s plus a sliding-window limiter | real 429s, then embed and rerank 200, run VERIFIED |
-| `mongo_down` | atlas-local stopped after approval | Mongo errors become compact retryable `MongoUnavailable` | `snapshot_state` attempt 3, then VERIFIED with an audit record |
-| `duplicate_start` | Same incident id started while running and after completion | `ALLOW_DUPLICATE_FAILED_ONLY` rejects both | exit 2 twice, one run, one state change |
 
 ## Key engineering findings
 
