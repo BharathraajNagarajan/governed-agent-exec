@@ -2,8 +2,8 @@
   "name": "llm_malformed",
   "title": "Malformed proposal ends NEEDS_HUMAN with zero fleet requests",
   "status": "PASS",
-  "duration_s": 0.4,
-  "finished_at": "2026-09-29T23:12:46.948239+00:00",
+  "duration_s": 0.3,
+  "finished_at": "2026-09-29T23:56:33.120263+00:00",
   "error": null,
   "checks": [
     {
@@ -69,8 +69,8 @@
   ],
   "incidents": [
     {
-      "workflow_id": "DEMO-LLM-MALFORMED-20260929161246",
-      "run_id": "01a0ef71-2c20-7858-b1e7-925d83e6fc26"
+      "workflow_id": "DEMO-LLM-MALFORMED-20260929165632",
+      "run_id": "01a0ef99-3ec0-75e6-a074-97777b9d3308"
     }
   ],
   "evidence": {

@@ -2,8 +2,8 @@
   "name": "duplicate_start",
   "title": "Second start of a running and of a completed incident id is rejected",
   "status": "PASS",
-  "duration_s": 55.9,
-  "finished_at": "2026-09-29T23:15:24.734422+00:00",
+  "duration_s": 16.5,
+  "finished_at": "2026-09-29T23:58:14.955600+00:00",
   "error": null,
   "checks": [
     {
@@ -11,7 +11,7 @@
       "ok": true,
       "observed": {
         "rc": 0,
-        "stdout": "started DEMO-DUPLICATE-START-20260929161428 run_id=01a0ef73-0ba6-7008-aedc-3b4b89930e3e proposal_source=file"
+        "stdout": "started DEMO-DUPLICATE-START-20260929165758 run_id=01a0ef9a-a704-72cb-bd8e-71b63a2c3484 proposal_source=file"
       },
       "reproduce": true
     },
@@ -20,7 +20,7 @@
       "ok": true,
       "observed": {
         "rc": 2,
-        "stdout": "rejected: incident DEMO-DUPLICATE-START-20260929161428 is running or already completed"
+        "stdout": "rejected: incident DEMO-DUPLICATE-START-20260929165758 is running or already completed"
       },
       "reproduce": false
     },
@@ -29,7 +29,7 @@
       "ok": true,
       "observed": {
         "rc": 2,
-        "stdout": "rejected: incident DEMO-DUPLICATE-START-20260929161428 is running or already completed"
+        "stdout": "rejected: incident DEMO-DUPLICATE-START-20260929165758 is running or already completed"
       },
       "reproduce": false
     },
@@ -37,8 +37,8 @@
       "name": "still one run for the incident id",
       "ok": true,
       "observed": {
-        "first_run": "01a0ef73-0ba6-7008-aedc-3b4b89930e3e",
-        "latest_run": "01a0ef73-0ba6-7008-aedc-3b4b89930e3e"
+        "first_run": "01a0ef9a-a704-72cb-bd8e-71b63a2c3484",
+        "latest_run": "01a0ef9a-a704-72cb-bd8e-71b63a2c3484"
       },
       "reproduce": false
     },
@@ -76,8 +76,8 @@
   "notes": [],
   "incidents": [
     {
-      "workflow_id": "DEMO-DUPLICATE-START-20260929161428",
-      "run_id": "01a0ef73-0ba6-7008-aedc-3b4b89930e3e"
+      "workflow_id": "DEMO-DUPLICATE-START-20260929165758",
+      "run_id": "01a0ef9a-a704-72cb-bd8e-71b63a2c3484"
     }
   ],
   "evidence": {
@@ -89,15 +89,15 @@
     ],
     "first": {
       "rc": 0,
-      "stdout": "started DEMO-DUPLICATE-START-20260929161428 run_id=01a0ef73-0ba6-7008-aedc-3b4b89930e3e proposal_source=file"
+      "stdout": "started DEMO-DUPLICATE-START-20260929165758 run_id=01a0ef9a-a704-72cb-bd8e-71b63a2c3484 proposal_source=file"
     },
     "while_running": {
       "rc": 2,
-      "stdout": "rejected: incident DEMO-DUPLICATE-START-20260929161428 is running or already completed"
+      "stdout": "rejected: incident DEMO-DUPLICATE-START-20260929165758 is running or already completed"
     },
     "after_completion": {
       "rc": 2,
-      "stdout": "rejected: incident DEMO-DUPLICATE-START-20260929161428 is running or already completed"
+      "stdout": "rejected: incident DEMO-DUPLICATE-START-20260929165758 is running or already completed"
     }
   }
 }

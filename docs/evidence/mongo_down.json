@@ -2,8 +2,8 @@
   "name": "mongo_down",
   "title": "atlas-local stopped while an approved incident proceeds, then started again",
   "status": "PASS",
-  "duration_s": 32.2,
-  "finished_at": "2026-09-29T23:14:27.357062+00:00",
+  "duration_s": 19.9,
+  "finished_at": "2026-09-29T23:57:57.819578+00:00",
   "error": null,
   "checks": [
     {
@@ -16,7 +16,7 @@
       "name": "atlas-local stopped",
       "ok": true,
       "observed": {
-        "docker_stop_s": 3.6,
+        "docker_stop_s": 2.0,
         "docker_stop_rc": 0,
         "container_exit_code": "137",
         "running": "false"
@@ -51,8 +51,8 @@
       "name": "atlas-local back",
       "ok": true,
       "observed": {
-        "down_after_approval_s": 23.0,
-        "mongo_ready_after_start_s": 10.7
+        "down_after_approval_s": 14.8,
+        "mongo_ready_after_start_s": 2.6
       },
       "reproduce": false
     },
@@ -62,7 +62,7 @@
       "observed": [
         {
           "activity": "snapshot_state",
-          "attempt": 4,
+          "attempt": 3,
           "last_failure": "mongo unavailable: ServerSelectionTimeoutError",
           "last_failure_type": "MongoUnavailable"
         }
@@ -73,7 +73,7 @@
       "name": "audit record exists",
       "ok": true,
       "observed": {
-        "_id": "DEMO-MONGO-DOWN-20260929161355:01a0ef72-3832-7274-b829-ae9296295f45",
+        "_id": "DEMO-MONGO-DOWN-20260929165737:01a0ef9a-3d11-7c09-86ed-03a4e4a2e561",
         "status": "VERIFIED"
       },
       "reproduce": false
@@ -106,13 +106,13 @@
   "notes": [],
   "incidents": [
     {
-      "workflow_id": "DEMO-MONGO-DOWN-20260929161355",
-      "run_id": "01a0ef72-3832-7274-b829-ae9296295f45"
+      "workflow_id": "DEMO-MONGO-DOWN-20260929165737",
+      "run_id": "01a0ef9a-3d11-7c09-86ed-03a4e4a2e561"
     }
   ],
   "evidence": {
     "stop": {
-      "docker_stop_s": 3.6,
+      "docker_stop_s": 2.0,
       "docker_stop_rc": 0,
       "container_exit_code": "137",
       "running": "false"
@@ -125,8 +125,8 @@
       }
     ],
     "restart": {
-      "down_after_approval_s": 23.0,
-      "mongo_ready_after_start_s": 10.7
+      "down_after_approval_s": 14.8,
+      "mongo_ready_after_start_s": 2.6
     },
     "history": {
       "scheduled": [
@@ -152,7 +152,7 @@
         },
         {
           "activity": "snapshot_state",
-          "attempt": 4,
+          "attempt": 3,
           "last_failure": "mongo unavailable: ServerSelectionTimeoutError",
           "last_failure_type": "MongoUnavailable"
         },

@@ -99,7 +99,7 @@ Other commands: `gax search "<query>"`, `gax status <id>`, `gax approve|reject <
 
 ## Failure matrix
 
-Each row is a demo that runs against the live stack and checks its evidence (Temporal history, ledger, fleet-api counters, fleet state, worker log). Every demo also scans its workflow histories and worker log for credential material. Full details are in [docs/failure-semantics.md](docs/failure-semantics.md). The observed results below come from a single recorded `gax demo run all` on 2026-09-29, where all 12 demos passed (257.9 s total; per-demo seconds and checks in the "Observed run" table; result files in [docs/evidence/](docs/evidence/)).
+Each row is a demo that runs against the live stack and checks its evidence (Temporal history, ledger, fleet-api counters, fleet state, worker log). Every demo also scans its workflow histories and worker log for credential material. Full details are in [docs/failure-semantics.md](docs/failure-semantics.md). The observed results below come from a single recorded `gax demo run all` on 2026-09-29, where all 12 demos passed (169.8 s total; per-demo seconds and checks in the "Observed run" table; result files in [docs/evidence/](docs/evidence/), with `policy_deny.json` from a standalone rerun the same day).
 
 | Demo | What breaks | What the system does | Observed |
 |---|---|---|---|

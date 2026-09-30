@@ -2,8 +2,8 @@
   "name": "approval_worker_restart",
   "title": "Real worker hard-killed during an approval wait; a new worker accepts the approval",
   "status": "PASS",
-  "duration_s": 26.1,
-  "finished_at": "2026-09-29T23:12:45.917439+00:00",
+  "duration_s": 16.8,
+  "finished_at": "2026-09-29T23:56:32.399828+00:00",
   "error": null,
   "checks": [
     {
@@ -17,8 +17,8 @@
       "ok": true,
       "observed": {
         "fleet_counters": {},
-        "launcher_pid": 11272,
-        "real_pid": 22672
+        "launcher_pid": 28840,
+        "real_pid": 25300
       },
       "reproduce": true
     },
@@ -38,11 +38,11 @@
       "name": "Update accepted by a workflow task on the new worker",
       "ok": true,
       "observed": {
-        "event_id": 21,
+        "event_id": 23,
         "update": "approve",
-        "worker_identity": "<pid>@<host>",
-        "new_pid": 3612,
-        "killed_pid": 22672
+        "worker_identity": "13720@<host>",
+        "new_pid": 13720,
+        "killed_pid": 25300
       },
       "reproduce": false
     },
@@ -81,12 +81,12 @@
       "name": "audit record present with approval",
       "ok": true,
       "observed": {
-        "audit_id": "DEMO-APPROVAL-WORKER-RESTART-20260929161219:01a0ef70-c427-788f-9648-57e7a05d44ea",
+        "audit_id": "DEMO-APPROVAL-WORKER-RESTART-20260929165615:01a0ef98-fbe2-7256-a698-61c068e68f53",
         "approval": {
           "decision": "APPROVED",
           "by": "demo-operator",
           "comment": "approved after worker restart",
-          "at": "2026-09-29T23:12:45.065106+00:00"
+          "at": "2026-09-29T23:56:31.856923+00:00"
         }
       },
       "reproduce": false
@@ -94,7 +94,7 @@
     {
       "name": "restarted worker logged its real pid",
       "ok": true,
-      "observed": 3612,
+      "observed": 13720,
       "reproduce": false
     },
     {
@@ -116,23 +116,23 @@
   "notes": [],
   "incidents": [
     {
-      "workflow_id": "DEMO-APPROVAL-WORKER-RESTART-20260929161219",
-      "run_id": "01a0ef70-c427-788f-9648-57e7a05d44ea"
+      "workflow_id": "DEMO-APPROVAL-WORKER-RESTART-20260929165615",
+      "run_id": "01a0ef98-fbe2-7256-a698-61c068e68f53"
     }
   ],
   "evidence": {
     "worker": {
-      "killed_pid": 22672,
-      "restarted_pid": 3612,
+      "killed_pid": 25300,
+      "restarted_pid": 13720,
       "fleet_counters": {},
-      "launcher_pid": 11272,
-      "real_pid": 22672
+      "launcher_pid": 28840,
+      "real_pid": 25300
     },
-    "kill_to_approval_s": 24.4,
+    "kill_to_approval_s": 15.9,
     "update": {
-      "event_id": 21,
+      "event_id": 23,
       "update": "approve",
-      "worker_identity": "<pid>@<host>"
+      "worker_identity": "13720@<host>"
     },
     "history": {
       "scheduled": [
@@ -195,10 +195,10 @@
       {
         "attempt": 1,
         "status": "APPLIED",
-        "run_id": "01a0ef70-c427-788f-9648-57e7a05d44ea",
+        "run_id": "01a0ef98-fbe2-7256-a698-61c068e68f53",
         "outcome": "APPLIED",
         "error": null,
-        "at": "2026-09-29 23:12:45.406000"
+        "at": "2026-09-29 23:56:32.024000"
       }
     ],
     "counters": {
@@ -209,7 +209,7 @@
       "decision": "APPROVED",
       "by": "demo-operator",
       "comment": "approved after worker restart",
-      "at": "2026-09-29T23:12:45.065106+00:00"
+      "at": "2026-09-29T23:56:31.856923+00:00"
     }
   }
 }

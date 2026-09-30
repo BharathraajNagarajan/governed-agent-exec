@@ -2,8 +2,8 @@
   "name": "approval_timeout",
   "title": "pause_pipeline needs approval: timeout, reject and approve paths",
   "status": "PASS",
-  "duration_s": 9.1,
-  "finished_at": "2026-09-29T23:12:17.888228+00:00",
+  "duration_s": 6.7,
+  "finished_at": "2026-09-29T23:56:15.213792+00:00",
   "error": null,
   "checks": [
     {
@@ -52,7 +52,7 @@
           "decision": "REJECTED",
           "by": "demo-operator",
           "comment": "not during business hours",
-          "at": "2026-09-29T23:12:14.910949+00:00"
+          "at": "2026-09-29T23:56:14.345116+00:00"
         }
       },
       "reproduce": false
@@ -81,16 +81,16 @@
   "notes": [],
   "incidents": [
     {
-      "workflow_id": "DEMO-APPROVAL-TIMEOUT-20260929161208-TIMEOUT",
-      "run_id": "01a0ef70-9876-7805-bf64-9037ac50ecfe"
+      "workflow_id": "DEMO-APPROVAL-TIMEOUT-20260929165608-TIMEOUT",
+      "run_id": "01a0ef98-e028-7582-9b33-ad03890da4be"
     },
     {
-      "workflow_id": "DEMO-APPROVAL-TIMEOUT-20260929161208-REJECT",
-      "run_id": "01a0ef70-aeaa-75a9-b162-a0da6288e41d"
+      "workflow_id": "DEMO-APPROVAL-TIMEOUT-20260929165608-REJECT",
+      "run_id": "01a0ef98-f503-7450-a750-534cb4cc8c96"
     },
     {
-      "workflow_id": "DEMO-APPROVAL-TIMEOUT-20260929161208-APPROVE",
-      "run_id": "01a0ef70-b1ea-7a1f-a157-f2a787fb4489"
+      "workflow_id": "DEMO-APPROVAL-TIMEOUT-20260929165608-APPROVE",
+      "run_id": "01a0ef98-f703-7cce-b064-deb1fe28ac5b"
     }
   ],
   "evidence": {
@@ -140,7 +140,7 @@
         "decision": "REJECTED",
         "by": "demo-operator",
         "comment": "not during business hours",
-        "at": "2026-09-29T23:12:14.910949+00:00"
+        "at": "2026-09-29T23:56:14.345116+00:00"
       },
       "counters": {}
     },
@@ -150,16 +150,16 @@
         "decision": "APPROVED",
         "by": "demo-operator",
         "comment": "approved",
-        "at": "2026-09-29T23:12:15.810226+00:00"
+        "at": "2026-09-29T23:56:14.806379+00:00"
       },
       "ledger": [
         {
           "attempt": 1,
           "status": "APPLIED",
-          "run_id": "01a0ef70-b1ea-7a1f-a157-f2a787fb4489",
+          "run_id": "01a0ef98-f703-7cce-b064-deb1fe28ac5b",
           "outcome": "APPLIED",
           "error": null,
-          "at": "2026-09-29 23:12:16.105000"
+          "at": "2026-09-29 23:56:14.916000"
         }
       ],
       "counters": {

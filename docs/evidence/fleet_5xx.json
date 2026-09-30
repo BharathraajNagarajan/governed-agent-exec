@@ -2,8 +2,8 @@
   "name": "fleet_5xx",
   "title": "fleet-api returns HTTP 500 twice, then succeeds",
   "status": "PASS",
-  "duration_s": 4.2,
-  "finished_at": "2026-09-29T23:11:49.669862+00:00",
+  "duration_s": 3.8,
+  "finished_at": "2026-09-29T23:55:59.646668+00:00",
   "error": null,
   "checks": [
     {
@@ -74,8 +74,8 @@
   "notes": [],
   "incidents": [
     {
-      "workflow_id": "DEMO-FLEET-5XX-20260929161145",
-      "run_id": "01a0ef70-3d64-7372-98e9-c566f71603f9"
+      "workflow_id": "DEMO-FLEET-5XX-20260929165555",
+      "run_id": "01a0ef98-ae70-7569-b831-b09345ffee9d"
     }
   ],
   "evidence": {
@@ -89,26 +89,26 @@
       {
         "attempt": 1,
         "status": "FAILED",
-        "run_id": "01a0ef70-3d64-7372-98e9-c566f71603f9",
+        "run_id": "01a0ef98-ae70-7569-b831-b09345ffee9d",
         "outcome": "HTTP_500",
         "error": "{\"detail\":\"injected failure\"}",
-        "at": "2026-09-29 23:11:46.041000"
+        "at": "2026-09-29 23:55:56.112000"
       },
       {
         "attempt": 2,
         "status": "FAILED",
-        "run_id": "01a0ef70-3d64-7372-98e9-c566f71603f9",
+        "run_id": "01a0ef98-ae70-7569-b831-b09345ffee9d",
         "outcome": "HTTP_500",
         "error": "{\"detail\":\"injected failure\"}",
-        "at": "2026-09-29 23:11:47.108000"
+        "at": "2026-09-29 23:55:57.155000"
       },
       {
         "attempt": 3,
         "status": "APPLIED",
-        "run_id": "01a0ef70-3d64-7372-98e9-c566f71603f9",
+        "run_id": "01a0ef98-ae70-7569-b831-b09345ffee9d",
         "outcome": "APPLIED",
         "error": null,
-        "at": "2026-09-29 23:11:49.214000"
+        "at": "2026-09-29 23:55:59.202000"
       }
     ],
     "history": {

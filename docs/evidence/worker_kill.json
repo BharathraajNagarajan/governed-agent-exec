@@ -2,8 +2,8 @@
   "name": "worker_kill",
   "title": "Real worker process hard-killed while execute_action attempt 1 is in flight",
   "status": "PASS",
-  "duration_s": 34.0,
-  "finished_at": "2026-09-29T23:11:44.593582+00:00",
+  "duration_s": 29.9,
+  "finished_at": "2026-09-29T23:55:55.466088+00:00",
   "error": null,
   "checks": [
     {
@@ -12,10 +12,10 @@
       "observed": {
         "attempt": 1,
         "status": "PENDING",
-        "run_id": "01a0ef6f-b5e5-754a-8ddc-a145bbb3eced",
+        "run_id": "01a0ef98-384d-7d80-8f97-f0d0cc317e50",
         "outcome": null,
         "error": null,
-        "at": "2026-09-29 23:11:14.927000"
+        "at": "2026-09-29 23:55:26.046000"
       },
       "reproduce": true
     },
@@ -27,8 +27,8 @@
           "get_state": 1,
           "restart_consumer": 1
         },
-        "launcher_pid": 6752,
-        "real_pid": 29116
+        "launcher_pid": 29444,
+        "real_pid": 10540
       },
       "reproduce": true
     },
@@ -50,10 +50,10 @@
         {
           "attempt": 1,
           "status": "PENDING",
-          "run_id": "01a0ef6f-b5e5-754a-8ddc-a145bbb3eced",
+          "run_id": "01a0ef98-384d-7d80-8f97-f0d0cc317e50",
           "outcome": null,
           "error": null,
-          "at": "2026-09-29 23:11:14.927000"
+          "at": "2026-09-29 23:55:26.046000"
         }
       ],
       "reproduce": false
@@ -79,7 +79,7 @@
     {
       "name": "restarted worker logged its real pid",
       "ok": true,
-      "observed": 22672,
+      "observed": 25300,
       "reproduce": false
     },
     {
@@ -101,8 +101,8 @@
   "notes": [],
   "incidents": [
     {
-      "workflow_id": "DEMO-WORKER-KILL-20260929161110",
-      "run_id": "01a0ef6f-b5e5-754a-8ddc-a145bbb3eced"
+      "workflow_id": "DEMO-WORKER-KILL-20260929165525",
+      "run_id": "01a0ef98-384d-7d80-8f97-f0d0cc317e50"
     }
   ],
   "evidence": {
@@ -113,32 +113,32 @@
       }
     ],
     "worker": {
-      "killed_pid": 29116,
-      "restarted_pid": 22672,
+      "killed_pid": 10540,
+      "restarted_pid": 25300,
       "fleet_counters": {
         "get_state": 1,
         "restart_consumer": 1
       },
-      "launcher_pid": 6752,
-      "real_pid": 29116
+      "launcher_pid": 29444,
+      "real_pid": 10540
     },
-    "kill_to_completion_s": 27.3,
+    "kill_to_completion_s": 27.1,
     "ledger": [
       {
         "attempt": 1,
         "status": "PENDING",
-        "run_id": "01a0ef6f-b5e5-754a-8ddc-a145bbb3eced",
+        "run_id": "01a0ef98-384d-7d80-8f97-f0d0cc317e50",
         "outcome": null,
         "error": null,
-        "at": "2026-09-29 23:11:14.927000"
+        "at": "2026-09-29 23:55:26.046000"
       },
       {
         "attempt": 2,
         "status": "APPLIED",
-        "run_id": "01a0ef6f-b5e5-754a-8ddc-a145bbb3eced",
+        "run_id": "01a0ef98-384d-7d80-8f97-f0d0cc317e50",
         "outcome": "REPLAYED",
         "error": null,
-        "at": "2026-09-29 23:11:35.955000"
+        "at": "2026-09-29 23:55:47.064000"
       }
     ],
     "history": {

@@ -92,7 +92,7 @@ Evidence types:
 
 | # | Claim | Evidence | Type |
 |---|---|---|---|
-| 38 | All 12 demos passed in a single `gax demo run all` on 2026-09-29 (257.9 s total; worker_kill 34.0 s 9/9, fleet_5xx 4.2 s 7/7, response_lost 2.4 s 7/7, credential_denied 4.8 s 9/9, credential_transient 5.5 s 8/8, policy_deny 0.7 s 7/7, approval_timeout 9.1 s 7/7, approval_worker_restart 26.1 s 11/11, llm_malformed 0.4 s 6/6, voyage_429 66.3 s 7/7, mongo_down 32.2 s 10/10, duplicate_start 55.9 s 7/7) | failure-semantics "Observed run" table; [docs/evidence/summary.json](evidence/summary.json), [docs/evidence/run-all.log](evidence/run-all.log) | findings, demo |
+| 38 | All 12 demos passed in a single `gax demo run all` on 2026-09-29 (169.8 s total; worker_kill 29.9 s 9/9, fleet_5xx 3.8 s 7/7, response_lost 1.7 s 7/7, credential_denied 0.9 s 9/9, credential_transient 3.7 s 8/8, policy_deny 0.4 s 7/7, approval_timeout 6.7 s 7/7, approval_worker_restart 16.8 s 11/11, llm_malformed 0.3 s 6/6, voyage_429 64.0 s 7/7, mongo_down 19.9 s 10/10, duplicate_start 16.5 s 7/7). `policy_deny.json` is from a standalone rerun the same day (PASS 7/7, 0.9 s) | failure-semantics "Observed run" table; [docs/evidence/summary.json](evidence/summary.json) and per-demo JSON; [docs/images/demo-run-all.png](images/demo-run-all.png) | findings, demo |
 | 39 | Every demo scans its histories and the worker log for credential material | failure-semantics intro; every demo has the check "no credential material in workflow history or worker log"; `test_demos.py::test_secret_hits` | findings, demo, test |
 | 40 | `worker_kill` row | failure-semantics §1; checks "execute_action retried after start_to_close timeout", "attempt 2 outcome REPLAYED or APPLIED", "restart_count increased exactly once" | findings, demo |
 | 41 | `fleet_5xx` row | failure-semantics §2; check "ledger attempts HTTP_500, HTTP_500, APPLIED" | findings, demo |
@@ -101,7 +101,7 @@ Evidence types:
 | 44 | `credential_transient` row | failure-semantics §5; check "fleet-api received 1 restart request (none without a credential)" | findings, demo |
 | 45 | `policy_deny` row | failure-semantics §6; M3 re-run PASS 7/7 (counters `{}`, offset 1000 → 1000) | findings, demo, M3 run |
 | 46 | `approval_timeout` row | failure-semantics §7; checks for the timeout, late approval, reject and approve paths | findings, demo |
-| 46a | `approval_worker_restart` row | failure-semantics §12; checks "Update accepted by a workflow task on the new worker" (identity `24392@Bharath`), "nothing re-proposed or re-evaluated", "pause applied once", "audit record present with approval", "status VERIFIED" | findings, demo |
+| 46a | `approval_worker_restart` row | failure-semantics §12; checks "Update accepted by a workflow task on the new worker" (identity `13720@<host>`), "nothing re-proposed or re-evaluated", "pause applied once", "audit record present with approval", "status VERIFIED" | findings, demo |
 | 47 | `llm_malformed` row | failure-semantics §8; check "zero fleet requests" | findings, demo |
 | 48 | `voyage_429` row (backoff 2/4/8 s, then 200) | failure-semantics §9; check "real 429s in worker log" | findings, demo |
 | 49 | `mongo_down` row (compact `MongoUnavailable`, attempt 3, audit record) | failure-semantics §10; `test_demos.py::test_mongo_errors_become_compact_retryable_failures` | findings, demo, test |
@@ -118,7 +118,7 @@ Evidence types:
 | 55 | A credential issuer cannot express parameter or environment rules | ADR 0001 (design rationale) | design |
 | 56 | A revocation stops the next retry | demo `credential_denied`; `test_credential_denied_is_non_retryable_and_restore_makes_rerun_succeed` | demo, test |
 | 57 | Handle inheritance hung the piped `start-stack.ps1`; fixed with `cmd.exe /c` redirection | m1-findings Part 0 (piped run now returns in 5 s) | findings |
-| 58 | `.venv\Scripts\python.exe` is a launcher, and kills target the real PID | m0 finding 1; demo `worker_kill` (killed real PID 13740, launcher 21476) | findings, demo |
+| 58 | `.venv\Scripts\python.exe` is a launcher, and kills target the real PID | m0 finding 1; demo `worker_kill` (killed real PID 10540, launcher 29444) | findings, demo |
 
 ## Limitations
 

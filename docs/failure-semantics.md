@@ -37,22 +37,22 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 
 ## Observed run
 
-`gax demo run all`, 2026-09-29, host Windows 11, Temporal CLI 1.9.1, temporalio 1.33.0, atlas-local `preview`. All 12 demos passed in one run. Total 257.9 s as measured by the runner (285.2 s wall clock including worker start and stop). Log: [docs/evidence/run-all.log](evidence/run-all.log).
+`gax demo run all`, 2026-09-29 16:55 to 16:58 PDT, host Windows 11, Temporal CLI 1.9.1, temporalio 1.33.0, atlas-local `preview`. All 12 demos passed in one run. Total 169.8 s as measured by the runner. Summary: [docs/evidence/summary.json](evidence/summary.json). `policy_deny` was re-run on its own the same day (PASS 7/7, 0.9 s); its §6 values and [docs/evidence/policy_deny.json](evidence/policy_deny.json) come from that rerun, and the table keeps the run-all value.
 
 | Demo | Result | Seconds | Checks |
 |---|---|---|---|
-| worker_kill | PASS | 34.0 | 9/9 |
-| fleet_5xx | PASS | 4.2 | 7/7 |
-| response_lost | PASS | 2.4 | 7/7 |
-| credential_denied | PASS | 4.8 | 9/9 |
-| credential_transient | PASS | 5.5 | 8/8 |
-| policy_deny | PASS | 0.7 | 7/7 |
-| approval_timeout | PASS | 9.1 | 7/7 |
-| approval_worker_restart | PASS | 26.1 | 11/11 |
-| llm_malformed | PASS | 0.4 | 6/6 |
-| voyage_429 | PASS | 66.3 | 7/7 |
-| mongo_down | PASS | 32.2 | 10/10 |
-| duplicate_start | PASS | 55.9 | 7/7 |
+| worker_kill | PASS | 29.9 | 9/9 |
+| fleet_5xx | PASS | 3.8 | 7/7 |
+| response_lost | PASS | 1.7 | 7/7 |
+| credential_denied | PASS | 0.9 | 9/9 |
+| credential_transient | PASS | 3.7 | 8/8 |
+| policy_deny | PASS | 0.4 | 7/7 |
+| approval_timeout | PASS | 6.7 | 7/7 |
+| approval_worker_restart | PASS | 16.8 | 11/11 |
+| llm_malformed | PASS | 0.3 | 6/6 |
+| voyage_429 | PASS | 64.0 | 7/7 |
+| mongo_down | PASS | 19.9 | 10/10 |
+| duplicate_start | PASS | 16.5 | 7/7 |
 
 ## 1. worker_kill
 
@@ -61,7 +61,7 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 - **Survives:** workflow state and the pending activity (Temporal server); the in-flight HTTP request (fleet-api finishes and commits it after the client dies); ledger row of the dead attempt.
 - **Retried:** `execute_action` (timeout is retryable). **Not retried:** nothing is re-proposed or re-evaluated; completed activities are replayed from history.
 - **Idempotency:** attempt 2 reuses the same key, so fleet-api replays the committed result.
-- **Observed:** killed real pid 13740 (launcher 21476) with fleet counters `restart_consumer=1` already. New worker pid 5944. History: `execute_action` attempt 2, lastFailure `activity StartToClose timeout`. Ledger `[PENDING, REPLAYED]`: attempt 1 never finished. `restart_count` 0 → 1. VERIFIED 27.8 s after the kill. Incident `DEMO-WORKER-KILL-20260929133243`.
+- **Observed:** killed real pid 10540 (launcher 29444) with fleet counters `restart_consumer=1` already. New worker pid 25300. History: `execute_action` attempt 2, lastFailure `activity StartToClose timeout`. Ledger `[PENDING, REPLAYED]`: attempt 1 never finished. `restart_count` 0 → 1. VERIFIED 27.1 s after the kill. Incident `DEMO-WORKER-KILL-20260929165525`. Temporal UI screenshot: [images/temporal-worker-kill.png](images/temporal-worker-kill.png).
 
 ## 2. fleet_5xx
 
@@ -77,7 +77,7 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 - **Expected:** attempt 1 `TRANSPORT_ERROR`, attempt 2 `REPLAYED`; one state change.
 - **Survives:** the committed state change and its stored response.
 - **Retried:** transport error (`FleetUnavailable`). The worker cannot know whether the request committed, so it must retry, and it relies on the key to make that safe.
-- **Observed:** fleet log `FAULT commit-then-drop action=restart_consumer idempotency_key=DEMO-RESPONSE-LOST-20260929133325:execute_action`; ledger `[TRANSPORT_ERROR, REPLAYED]`; history attempt 2, lastFailure `fleet-api transport error: RemoteProtocolError`; counters `restart_consumer=2`; `restart_count` 0 → 1; VERIFIED.
+- **Observed:** fleet log `FAULT commit-then-drop action=restart_consumer idempotency_key=DEMO-RESPONSE-LOST-20260929165600:execute_action`; ledger `[TRANSPORT_ERROR, REPLAYED]`; history attempt 2, lastFailure `fleet-api transport error: RemoteProtocolError`; counters `restart_consumer=2`; `restart_count` 0 → 1; VERIFIED.
 
 ## 4. credential_denied
 
@@ -120,7 +120,7 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 - **Trigger:** direct `embeddings` calls that bypass the client limiter until the first 429, then an incident with real retrieval (Voyage embed + rerank against `ai.mongodb.com`) and an injected proposal.
 - **Expected:** real 429s in the worker log, backoff, retrieval succeeding. No 429 would be NOT REPRODUCED.
 - **Retried:** 429 inside `VoyageClient` (2/4/8/16/32 s, 6 attempts) with a sliding-window limiter (3 RPM / 10K TPM); then the activity retry. **Not retried:** 401/403/other 4xx. If retrieval fails anyway, the workflow records `retrieval_error` and proceeds without context, because retrieval is supporting context only. That path is covered by `tests/integration/test_remediation_workflow.py::test_retrieval_error_proposes_with_empty_context_and_policy_still_gates`: `retrieve_context` raises `RetrievalNotReady` (non-retryable by the retry policy, one attempt, `RETRY_STATE_NON_RETRYABLE_FAILURE`), the audit has `retrieval_error` and `context: []`, `ProposerTestDouble` receives an empty context, policy returns ALLOW (`policy-v1`), and the run ends VERIFIED.
-- **Observed:** direct probes `[200, 200, 200, 429]`. Worker: `voyage 429 path=embeddings` attempts 1, 2, 3 with backoff 2.0, 4.0, 8.0 s (13:33:48, :51, :55). The 4th attempt was held by the client limiter, which counts the 429'd attempts, until 60 s after the first 429, then `embeddings 200` at 13:34:49 and `rerank 200` at 13:34:51. Five chunks retrieved (top: `consumer-lag-no-active-members#symptoms`, rerank 0.8359), no `retrieval_error`; VERIFIED.
+- **Observed:** direct probes `[200, 200, 200, 429]`. Worker: `voyage 429 path=embeddings` attempts 1, 2, 3 with backoff 2.0, 4.0, 8.0 s (16:56:34, :36, :40, worker log local time). The 4th attempt was held by the client limiter, which counts the 429'd attempts, until 60 s after the first 429, then `embeddings 200` at 16:57:34 and `rerank 200` at 16:57:36. Five chunks retrieved (top: `consumer-lag-no-active-members#symptoms`, rerank 0.8359), no `retrieval_error`; VERIFIED.
 
 ## 10. mongo_down
 
@@ -128,14 +128,14 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 - **Expected:** retryable failures while Mongo is down; workflow completes after it returns; audit record exists.
 - **Survives:** everything in Temporal (the approval Update is accepted while Mongo is down). Mongo data is on the `gae-atlas-data` volume.
 - **Retried:** every Mongo error in `snapshot_state`, `execute_action`, `verify_outcome`, `record_audit` is mapped to `MongoUnavailable` (retryable). The first Mongo call is the broker's grant lookup, so `snapshot_state` fails first. The budget for fleet activities is 6 attempts (about 55 s with the 5 s server-selection timeout per attempt). Mongo down for longer than that would end `FAILED`; `record_audit` has 20 attempts up to 30 s apart (several minutes).
-- **Observed:** `docker stop` returned 0 after 2.9 s, container `ExitCode` 137 (128 + SIGKILL) although `docker stop` returned well inside its 10 s grace period; the container was also `Exited (137)` at the start of this session after the M1 `stop-stack.ps1`. Cause not investigated. While down: `snapshot_state` attempt 3, lastFailure `mongo unavailable: ServerSelectionTimeoutError`. Mongo ready 5.6 s after `docker start`, 16.8 s after approval. History: `snapshot_state` attempt 3, type `MongoUnavailable`. Audit record `DEMO-MONGO-DOWN-20260929133452:01a0eee0-...` status VERIFIED; `pause_pipeline=1`; VERIFIED. fleet-api and `record_audit` did not see an outage in this run: Mongo was back before they ran.
+- **Observed:** `docker stop` returned 0 after 2.0 s, container `ExitCode` 137 (128 + SIGKILL) although `docker stop` returned well inside its 10 s grace period; the container was also `Exited (137)` at the start of this session after the M1 `stop-stack.ps1`. Cause not investigated. While down: `snapshot_state` attempt 3, lastFailure `mongo unavailable: ServerSelectionTimeoutError`. Mongo ready 2.6 s after `docker start`, 14.8 s after approval. History: `snapshot_state` attempt 3, type `MongoUnavailable`. Audit record `DEMO-MONGO-DOWN-20260929165737:01a0ef9a-3d11-7c09-86ed-03a4e4a2e561` status VERIFIED; `pause_pipeline=1`; VERIFIED. fleet-api and `record_audit` did not see an outage in this run: Mongo was back before they ran.
 
 ## 11. duplicate_start
 
 - **Trigger:** `gax incident start` (CLI subprocess) with a 6 s latency fault; the same command again while it is executing and again after it completes.
 - **Expected:** both duplicates rejected; one run; one state change.
 - **Mechanism:** workflow id = incident id with `ALLOW_DUPLICATE_FAILED_ONLY`; Temporal rejects a start while a run is open and after a successful close.
-- **Observed:** first start exit 0; while running exit 2 `rejected: incident DEMO-DUPLICATE-START-20260929133516 is running or already completed`; after completion the same, exit 2; latest run id equals the first; ledger `[APPLIED]`, `restart_consumer=1`, `restart_count` 1; VERIFIED.
+- **Observed:** first start exit 0; while running exit 2 `rejected: incident DEMO-DUPLICATE-START-20260929165758 is running or already completed`; after completion the same, exit 2; latest run id equals the first; ledger `[APPLIED]`, `restart_consumer=1`, `restart_count` 1; VERIFIED.
 
 ## 12. approval_worker_restart
 
@@ -143,7 +143,7 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 - **Expected:** the workflow stays RUNNING with no worker; the new worker replays history, rebuilds `AWAITING_APPROVAL`, and its validator accepts the Update; nothing is re-proposed or re-evaluated; pause applied once; audit record present; VERIFIED.
 - **Survives:** the workflow, its completed `propose_action` / `evaluate_policy` results and the approval timer (Temporal server). The in-memory workflow state on the dead worker is lost and rebuilt by replay.
 - **Retried:** nothing. No activity was in flight at the kill.
-- **Observed:** killed real pid 31024 (launcher 8128) at `AWAITING_APPROVAL`, fleet counters `{}`. `describe` status RUNNING with no worker. New worker pid 24392. `approve` returned `APPROVED` 18.3 s after the kill (this includes the new worker's startup). History: `WorkflowExecutionUpdateAccepted` (event 23, `approve`) follows a `WorkflowTaskStarted` with identity `24392@Bharath`, so the new worker accepted it. Scheduled `[propose_action, evaluate_policy, snapshot_state, execute_action, verify_outcome, record_audit]` (each once). Ledger `[APPLIED]`; counters `{get_state: 2, pause_pipeline: 1}`; paused false → true. Audit `DEMO-APPROVAL-WORKER-RESTART-20260929155333:01a0ef5f-93aa-7d85-b7da-5206a69f0fb9`, status VERIFIED, approval `{decision: APPROVED, by: demo-operator}`. VERIFIED.
+- **Observed:** killed real pid 25300 (launcher 28840) at `AWAITING_APPROVAL`, fleet counters `{}`. `describe` status RUNNING with no worker. New worker pid 13720. `approve` returned `APPROVED` 15.9 s after the kill (this includes the new worker's startup). History: `WorkflowExecutionUpdateAccepted` (event 23, `approve`) follows a `WorkflowTaskStarted` with identity `13720@<host>`, so the new worker accepted it. Scheduled `[propose_action, evaluate_policy, snapshot_state, execute_action, verify_outcome, record_audit]` (each once). Ledger `[APPLIED]`; counters `{get_state: 2, pause_pipeline: 1}`; paused false → true. Audit `DEMO-APPROVAL-WORKER-RESTART-20260929165615:01a0ef98-fbe2-7256-a698-61c068e68f53`, status VERIFIED, approval `{decision: APPROVED, by: demo-operator}`. VERIFIED.
 
 ## Findings
 

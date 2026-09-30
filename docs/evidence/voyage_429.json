@@ -2,8 +2,8 @@
   "name": "voyage_429",
   "title": "Voyage free-tier rate limit exhausted, then an incident uses real retrieval",
   "status": "PASS",
-  "duration_s": 66.3,
-  "finished_at": "2026-09-29T23:13:53.944569+00:00",
+  "duration_s": 64.0,
+  "finished_at": "2026-09-29T23:57:37.496266+00:00",
   "error": null,
   "checks": [
     {
@@ -93,8 +93,8 @@
   "notes": [],
   "incidents": [
     {
-      "workflow_id": "DEMO-VOYAGE-429-20260929161247",
-      "run_id": "01a0ef71-3639-71c9-be66-6be4603cdabd"
+      "workflow_id": "DEMO-VOYAGE-429-20260929165633",
+      "run_id": "01a0ef99-4536-7388-8686-13f9f5b51e0a"
     }
   ],
   "evidence": {
