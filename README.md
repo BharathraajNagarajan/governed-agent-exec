@@ -32,7 +32,7 @@ The event's examples ingest data and read it. This repo governs **write** action
 | Deterministic deny-by-default policy | Deterministic `policy-v1` table. Nothing is allowed by default: unknown actions fail schema validation (NEEDS_HUMAN), and missing or out-of-range params are DENY | `test_table_cells`, `test_scale_boundaries`, `test_deterministic`; demos `policy_deny`, `llm_malformed` |
 | Per-activity short-lived credentials | LOCAL-ONLY broker, fresh JWT per activity attempt | `test_short_ttl_expires_in_real_time`; demo `credential_transient` |
 | Policy denial at execution time | Revoked grant makes `execute_action` fail non-retryably | demo `credential_denied`; `test_revoke_denies_and_restore_allows` |
-| Keycard | **Pending** account; not integrated | [ADR 0002](docs/decisions/0002-keycard-integration.md) |
+| Keycard | **Pending** private-beta access; not integrated | [ADR 0002](docs/decisions/0002-keycard-integration.md) |
 | Blue/green embedding migration | **Not implemented**; `retrieval_config` holds a `v1` active pointer only | `src/gax/retrieval/store.py` (`set_active`, `get_active`) |
 
 Independent personal project; not affiliated with or endorsed by MongoDB, Temporal, or Keycard.
@@ -83,7 +83,7 @@ Temporal history is the authority on execution. MongoDB holds retrieval data, do
 ## Design decisions I made
 
 - **Two authorization layers, not a credential issuer alone.** Versioned policy code decides on action, environment and parameters; a per-attempt credential decides who may call fleet-api at all. Rejected: relying on the credential issuer only, because it never sees the proposal and cannot express "`scale_consumer` only for 1..10 replicas" or "DENY in prod". [ADR 0001](docs/decisions/0001-authorization-layering.md)
-- **A LOCAL-ONLY broker behind the Keycard interface.** It signs short-lived JWTs with a local key, raises the same `CredentialDenied` (non-retryable) and `CredentialUnavailable` (retryable) errors, is labelled LOCAL-ONLY in logs and audit records, and is never used when `KEYCARD_ZONE_URL` is set. Rejected: blocking the credential work on the pending Keycard account. [ADR 0002](docs/decisions/0002-keycard-integration.md)
+- **A LOCAL-ONLY broker behind the Keycard interface.** It signs short-lived JWTs with a local key, raises the same `CredentialDenied` (non-retryable) and `CredentialUnavailable` (retryable) errors, is labelled LOCAL-ONLY in logs and audit records, and is never used when `KEYCARD_ZONE_URL` is set. Rejected: blocking the credential work on pending Keycard private-beta access. [ADR 0002](docs/decisions/0002-keycard-integration.md)
 - **One structured proposal per incident, not an agent framework.** `propose_action` is a single Temporal activity that returns one Pydantic-validated `ActionProposal`, with bounded retries and then NEEDS_HUMAN. Rejected: multi-agent setups, listed as out of scope in [docs/design.md](docs/design.md#out-of-scope-until-m1-and-m2-pass). Demo `llm_malformed` shows an out-of-schema action stopping before any fleet request.
 - **A per-attempt ledger next to Temporal history.** Every `execute_action` attempt writes its own `action_ledger` row. Rejected: relying on history alone, because it records only the final attempt's `ActivityTaskStarted`, so a killed attempt appears only as `lastFailure`. [m0-findings finding 2](docs/m0-findings.md#findings); demo `worker_kill` (ledger `[PENDING, REPLAYED]`).
 - **Idempotency key per incident id.** `execute_action` sends `<workflow_id>:execute_action`, and fleet-api stores the response in the same Mongo transaction as the state change. Rejected for now: a per-run key, which would let a rerun of a failed incident apply the action again. [failure-semantics "Idempotency"](docs/failure-semantics.md#idempotency)
@@ -157,7 +157,7 @@ Other commands: `gax search "<query>"`, `gax status <id>`, `gax approve|reject <
 
 ## Limitations and what I would change for production
 
-- **LOCAL-ONLY credential broker, not Keycard.** The account is pending ([ADR 0002](docs/decisions/0002-keycard-integration.md)). The broker implements the interface Keycard would satisfy and signs JWTs with a local key. None of this counts as Keycard verification.
+- **LOCAL-ONLY credential broker, not Keycard.** Keycard is pending private-beta access ([ADR 0002](docs/decisions/0002-keycard-integration.md)). The broker implements the interface Keycard would satisfy and signs JWTs with a local key. None of this counts as Keycard verification.
 - **Single-node atlas-local and the Temporal dev server** (SQLite file under `.gax/`). There is no replication, HA or persistence tuning.
 - **fleet-api `/admin/*` endpoints are unauthenticated.** They exist for fault injection and resets, and only listen on `127.0.0.1`.
 - **The corpus is synthetic.** It has 14 invented runbooks and 54 chunks ([corpus/README.md](corpus/README.md)).

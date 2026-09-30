@@ -43,7 +43,7 @@ Evidence types:
 | 72 | The talks showed durable ingestion (Temporal + Voyage + Atlas), a worker kill without losing the workflow, Keycard per-activity credentials through a Temporal interceptor, a live Cedar denial of the worker's MongoDB credential, and a versioned index with an active pointer | Author's account of public talk content. Not reproduced in this repo. | author |
 | 73 | Current docs were checked afterwards | Author's account; versions actually run are recorded in m0-findings "Versions" | author, findings |
 | 74 | The public reference repo is mongodb-developer/mdb-temporal-keycard | Repository README, fetched 2026-09-29 (same source as row 68) | external |
-| 75 | Verification spikes were run | m0-findings summary: M0.1–M0.4 PASS, M0.5 PENDING ACCOUNT | findings |
+| 75 | Verification spikes were run | m0-findings summary: M0.1–M0.4 PASS, M0.5 PENDING PRIVATE-BETA ACCESS | findings |
 | 76 | Differences: write actions, parameter-level policy, approval with durable timeout, idempotent side effects with a per-attempt ledger, outcome verification, 12 live failure demos | rows 2, 5, 6, 11, 23, 38, 53 | test, demo |
 | 77 | Worker-kill recovery: retried on a new worker, applied once | demos `worker_kill`, `approval_worker_restart` (rows 40, 46a) | demo |
 | 78 | `propose_action` (the LLM call) is a Temporal activity | `@activity.defn` in `src/gax/remediation/activities.py`; `test_staging_restart_...` asserts it in the scheduled-activity list; m1-findings INC-M1-001 | code, test, findings |
@@ -88,7 +88,7 @@ Evidence types:
 | # | Claim | Evidence | Type |
 |---|---|---|---|
 | 94 | Two authorization layers; credential issuer alone rejected because it never sees the proposal | ADR 0001; row 55 | design |
-| 95 | LOCAL-ONLY broker behind the Keycard interface: local JWTs, `CredentialDenied` non-retryable, `CredentialUnavailable` retryable, labelled LOCAL-ONLY, never used when `KEYCARD_ZONE_URL` is set; blocking on the account rejected | ADR 0002; `test_build_broker_refuses_when_keycard_configured` (row 30); demos `credential_denied`, `credential_transient` | design, test, demo |
+| 95 | LOCAL-ONLY broker behind the Keycard interface: local JWTs, `CredentialDenied` non-retryable, `CredentialUnavailable` retryable, labelled LOCAL-ONLY, never used when `KEYCARD_ZONE_URL` is set; blocking on private-beta access rejected | ADR 0002; `test_build_broker_refuses_when_keycard_configured` (row 30); demos `credential_denied`, `credential_transient` | design, test, demo |
 | 96 | One Pydantic-validated `ActionProposal` from a single `propose_action` activity with bounded retries then NEEDS_HUMAN; multi-agent listed as out of scope | docs/design.md (RemediationWorkflow step 2; "Out of scope until M1 and M2 pass"); row 78; `test_malformed_proposal_needs_human_after_three_bounded_attempts`; demo `llm_malformed` (row 22) | design, test, demo |
 | 97 | Per-attempt ledger because history keeps only the final attempt's `ActivityTaskStarted` | m0 finding 2 (row 53); demo `worker_kill` ledger `[PENDING, REPLAYED]` | findings, demo |
 | 98 | Idempotency key per incident id, stored with the state change in one transaction; per-run key rejected for now | failure-semantics "Idempotency"; row 54; row 64 | findings, test, code |

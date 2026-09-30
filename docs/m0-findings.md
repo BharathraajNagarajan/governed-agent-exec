@@ -27,7 +27,7 @@ Observed results only. Run date: 2026-09-29. Host: Windows 11 Pro, PowerShell, D
 | M0.2 atlas-local vector index + restart | PASS |
 | M0.3 Voyage embed + rerank + $vectorSearch | PASS |
 | M0.4 Anthropic ActionProposal + Pydantic | PASS |
-| M0.5 Keycard | PENDING ACCOUNT |
+| M0.5 Keycard | PENDING PRIVATE-BETA ACCESS |
 
 ## M0.1 Temporal (`spikes/m0_1_temporal`)
 
@@ -66,7 +66,7 @@ Observed results only. Run date: 2026-09-29. Host: Windows 11 Pro, PowerShell, D
 
 ## M0.5 Keycard
 
-Status: PENDING ACCOUNT. No Keycard integration was attempted. `KEYCARD_ZONE_URL`, `KEYCARD_CLIENT_ID`, `KEYCARD_CLIENT_SECRET` are empty. See `docs/decisions/0002-keycard-integration.md`.
+Status: PENDING PRIVATE-BETA ACCESS. No Keycard integration was attempted. `KEYCARD_ZONE_URL`, `KEYCARD_CLIENT_ID`, `KEYCARD_CLIENT_SECRET` are empty. See `docs/decisions/0002-keycard-integration.md`.
 
 ## Findings
 

@@ -1,16 +1,16 @@
 # 0002: Keycard integration
 
-Status: PENDING ACCOUNT
+Status: PENDING PRIVATE-BETA ACCESS
 
 ## Context
 
 Layer 2 of authorization (0001) is per-activity credential issuance. The intended provider is Keycard, using `@grant` on the activity so each attempt obtains its own short-lived credential, and fleet-api validates the resulting JWT.
 
-The Keycard account is pending. `KEYCARD_ZONE_URL`, `KEYCARD_CLIENT_ID` and `KEYCARD_CLIENT_SECRET` exist in `.env` but are empty. No Keycard call has been made or verified (M0.5).
+Keycard is pending private-beta access (signup is currently a private-beta waitlist). `KEYCARD_ZONE_URL`, `KEYCARD_CLIENT_ID` and `KEYCARD_CLIENT_SECRET` exist in `.env` but are empty. No Keycard call has been made or verified (M0.5).
 
 ## Decision
 
-Until the account is available, `execute_action` uses a **LOCAL-ONLY credential broker** behind the same interface Keycard will satisfy.
+Until private-beta access is granted, `execute_action` uses a **LOCAL-ONLY credential broker** behind the same interface Keycard will satisfy.
 
 Interface (conceptual):
 
@@ -28,7 +28,7 @@ The credential is fetched inside the activity on every attempt and is never retu
 
 ## What switching to Keycard requires
 
-1. Account provisioned; zone URL, client ID and client secret filled in `.env`.
+1. Private-beta access granted and a zone provisioned; zone URL, client ID and client secret filled in `.env`.
 2. A Keycard-backed implementation of the same interface using `@grant` on `execute_action`.
 3. Map Keycard errors onto `CredentialDenied` (non-retryable) and `CredentialUnavailable` (retryable).
 4. fleet-api validates Keycard-issued JWTs (issuer, audience, signing keys from the zone) instead of the local key.
