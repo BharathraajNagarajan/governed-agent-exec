@@ -10,6 +10,18 @@ Evidence types:
 - **code**: inspection only, with no test or demo. These rows are listed so the gap is visible.
 - **author**: the author's own account (event attendance, talk content, affiliation). Nothing in the repo can verify it.
 
+## At a glance
+
+| # | Claim | Evidence | Type |
+|---|---|---|---|
+| 87 | Claude proposes, versioned policy decides, Temporal executes durably with per-attempt credentials, idempotency keys, verification and an audit record | rows 1–7 | findings, test, demo |
+| 88 | 12/12 failure demos pass in one live `gax demo run all` | row 38; [docs/evidence/summary.json](evidence/summary.json) | demo |
+| 89 | 108 tests (unit and integration, pytest) | M3 follow-up `pytest`: 108 passed in 70 s (below); `pytest --collect-only -q` on 2026-09-29 after the evidence refresh: 108 collected (collection only, not re-run) | test |
+| 90 | Stack: Temporal, MongoDB atlas-local with Vector Search, Voyage AI, Claude, FastAPI, Python 3.12 | `pyproject.toml` (`requires-python >=3.12,<3.13`, `temporalio`, `pymongo`, `anthropic`, `fastapi`); `scripts/start-stack.ps1` (atlas-local container, Temporal dev server); m1-findings Part 1 (vector index, Voyage embed and rerank); m1-findings Part 2 (Claude proposal) | code, findings |
+| 91 | Credential layer is LOCAL-ONLY behind the Keycard interface; Keycard pending | row 59; ADR 0002 | findings |
+| 92 | Personal project, September 2026, runs locally only | row 70 | findings |
+| 93 | Screenshot caption: all 12 demos PASS with every check passing, 169.8 s total | [docs/images/demo-run-all.png](images/demo-run-all.png) shows the runner's table; it matches [docs/evidence/summary.json](evidence/summary.json) and the per-demo check counts | demo |
+
 ## Thesis
 
 | # | Claim | Evidence | Type |
@@ -71,6 +83,19 @@ Evidence types:
 | 24 | The broker stops actions after revocation and keeps credentials out of history and logs | demos `credential_denied`, `credential_transient` (each has a credential-scan check); `test_revoke_denies_and_restore_allows`; `test_staging_restart_...` | demo, test |
 | 25 | fleet-api prevents double application | demos `fleet_5xx`, `response_lost`; `test_idempotency_dedupe`, `test_concurrent_duplicates_apply_once`, `test_commit_then_drop_applies_exactly_once` | demo, test |
 
+## Design decisions I made
+
+| # | Claim | Evidence | Type |
+|---|---|---|---|
+| 94 | Two authorization layers; credential issuer alone rejected because it never sees the proposal | ADR 0001; row 55 | design |
+| 95 | LOCAL-ONLY broker behind the Keycard interface: local JWTs, `CredentialDenied` non-retryable, `CredentialUnavailable` retryable, labelled LOCAL-ONLY, never used when `KEYCARD_ZONE_URL` is set; blocking on the account rejected | ADR 0002; `test_build_broker_refuses_when_keycard_configured` (row 30); demos `credential_denied`, `credential_transient` | design, test, demo |
+| 96 | One Pydantic-validated `ActionProposal` from a single `propose_action` activity with bounded retries then NEEDS_HUMAN; multi-agent listed as out of scope | docs/design.md (RemediationWorkflow step 2; "Out of scope until M1 and M2 pass"); row 78; `test_malformed_proposal_needs_human_after_three_bounded_attempts`; demo `llm_malformed` (row 22) | design, test, demo |
+| 97 | Per-attempt ledger because history keeps only the final attempt's `ActivityTaskStarted` | m0 finding 2 (row 53); demo `worker_kill` ledger `[PENDING, REPLAYED]` | findings, demo |
+| 98 | Idempotency key per incident id, stored with the state change in one transaction; per-run key rejected for now | failure-semantics "Idempotency"; row 54; row 64 | findings, test, code |
+| 99 | Retrieval failure proceeds without context and policy still gates; failing the run rejected | `src/gax/workflows.py` (lines 88–95, `retrieval_error`); row 63 test | code, test |
+| 100 | Live self-verifying demos; mock-only rejected because the mock-transport test missed the "Failure exceeds size limit." truncation | failure-semantics finding 1; row 51 | findings, demo |
+| 101 | Blue/green embedding migration deferred; single `v1` active pointer | row 85; docs/design.md thesis ("Retrieval is supporting context"). The reason (outside the thesis) is the author's decision | code, test, author |
+
 ## Quickstart
 
 | # | Claim | Evidence | Type |
@@ -106,6 +131,8 @@ Evidence types:
 | 48 | `voyage_429` row (backoff 2/4/8 s, then 200) | failure-semantics §9; check "real 429s in worker log" | findings, demo |
 | 49 | `mongo_down` row (compact `MongoUnavailable`, attempt 3, audit record) | failure-semantics §10; `test_demos.py::test_mongo_errors_become_compact_retryable_failures` | findings, demo, test |
 | 50 | `duplicate_start` row | failure-semantics §11; `test_duplicate_start_rejected` | findings, demo, test |
+| 102 | Screenshot caption: Temporal UI for `DEMO-WORKER-KILL-20260929165525` shows `execute_action` attempt 2 on the new worker (pid 25300) with lastFailure `activity StartToClose timeout` | [docs/images/temporal-worker-kill.png](images/temporal-worker-kill.png) (event 24, identity `25300@<machine>`, attempt 2, Last Failure); [docs/evidence/worker_kill.json](evidence/worker_kill.json) (`restarted_pid` 25300, `last_failure`) | demo |
+| 103 | Screenshot caption: standalone `policy_deny` rerun PASS, 7/7, 0.9 s | [docs/images/policy-deny.png](images/policy-deny.png); [docs/evidence/policy_deny.json](evidence/policy_deny.json) | demo |
 
 ## Key engineering findings
 
