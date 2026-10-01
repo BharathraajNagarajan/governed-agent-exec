@@ -1,6 +1,6 @@
 # 0002: Keycard integration
 
-Status: PENDING VERIFICATION (K2 implemented; moves to Accepted when the K3 failure demos pass against Keycard)
+Status: ACCEPTED (2026-10-01, after all 12 failure demos passed against Keycard in K3)
 
 ## Context
 
@@ -72,13 +72,25 @@ Keycard has no fault injection. In `keycard` mode the broker accepts the same gr
 - **Environment and target binding is lost in `keycard` mode.** Keycard tokens carry no `environment`, `target` or `action` claims (§8.2), so fleet-api checks only the action, through `aud`. A `:restart` token is accepted for `prod/payments-consumer` as well as `staging/orders-consumer` (pinned by `test_no_environment_or_target_binding_in_keycard_mode`). Layer 1 policy still decides action, target, environment and params before `execute_action` runs. Restoring the binding would need resources per environment (8+ resources) or a token exchange with custom claims. Not done.
 - Tokens already issued stay valid until `exp` after a revoke (docs, §1). With a 1m lifetime, that window is at most 60 s.
 - Every `issue()` is one Keycard transaction. Snapshot, execute and verify mint separately, so one successful remediation costs at least 3 mints. Simulated transient attempts cost nothing.
-- Time-to-effect of a policy-set flip is not measured (§8.5).
+- Time-to-effect of a policy-set flip is not measured. K3 gives only upper bounds: 33.7 s from the revoke prompt to the first denied probe and 53.4 s from the restore prompt to the first issued probe. Both include operator time, so neither measures time-to-effect.
 
 ## Verification so far (K2)
 
 - Unit tests with labelled test doubles (`KeycardClientTestDouble`, `KeycardZoneTestDouble`, `StubJWKSClientTestDouble`) cover resource mapping, every error mapping, the simulated transient, `build_broker` selection and fail-fast, and the fleet-api verifier (correct and wrong `aud`, wrong issuer, expired, foreign key, JWKS outage → 503).
 - Live (`tests/live`, marker `keycard`, `KEYCARD_LIVE=1`): the real broker minted all 5 resources and the fleet-api verifier accepted each one against the live zone JWKS and rejected it for another action's audience. 5 passed, 5 mints (2026-10-01).
-- **Not yet verified:** the failure demos (`credential_denied` via policy-set flip, `credential_transient`), the full remediation workflow against Keycard and fleet-api in `keycard` mode, and the no-credential-in-history scan with real tokens. These are K3. This ADR moves to Accepted only after they pass.
+- **Not yet verified:** time-to-effect of a policy-set flip, and whether a restart token issued before the forbid stays valid until `exp`.
+
+## Verification (K3, 2026-10-01)
+
+Stack run with `CREDENTIAL_MODE=keycard`: the worker printed `credential_mode=KEYCARD`, and fleet-api `/healthz` reported `auth_mode` `KEYCARD`. Details are in `docs/failure-semantics.md` (Observed run: KEYCARD mode) and `docs/evidence/keycard/`.
+
+- **`gax demo run all`: 12/12 PASS**, 310.9 s. Each demo also checked that its ledger rows carry `credential_mode` `KEYCARD` and that `/healthz` reports `auth_mode` `KEYCARD`.
+- **`credential_denied`** used a real policy-set flip, made by the operator in the console while the demo probed with real mints. The ledger showed `[CREDENTIAL_DENIED]`, and the error named policy `gax-forbid-restart` in version 3 of `gax-zone-policies`. There was 1 non-retryable `execute_action` attempt, fleet-api received 0 restart requests, and the worker log showed the KEYCARD denial. After `default-zone-policies` was re-activated, the same incident id reran VERIFIED with ledger `[APPLIED]`, and the state changed exactly once.
+- **`credential_transient`**: 2 SIMULATED transients in front of the mint (§6, labelled in history and in a demo NOTE), then a real mint. Ledger `[CREDENTIAL_UNAVAILABLE, CREDENTIAL_UNAVAILABLE, APPLIED]`, VERIFIED.
+- **Full remediation workflow with a real LLM and real Keycard:** `INC-K3-001` (staging `orders-consumer`). The LLM proposed `restart_consumer`, policy returned ALLOW, and the run was VERIFIED with 3 mints. Ledger and audit both carry `credential_mode` `KEYCARD`.
+- **No credential in history:** a JWT-shape scan (any `eyJ<header>.eyJ<payload>.<signature>`, plus `Bearer <token>`) over every demo history, each demo's worker-log slice, and `INC-K3-001`'s 47 history events found 0 hits. The scan was widened in K3 because Keycard RS256 headers need not start with `eyJhbGciOi`.
+- Keycard mints: 46 in the demo run (36 by the worker, 10 probes), 3 for `INC-K3-001`, and 5 for the live tests.
+- K3 fixes: fleet-api now refuses to start when `KEYCARD_ZONE_URL` is set and `CREDENTIAL_MODE` is not, the same rule as `build_broker`. `start-stack.ps1` prints the `auth_mode` it reads from `/healthz`.
 
 ## Consequences
 

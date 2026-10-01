@@ -242,3 +242,37 @@ Labels: **VERIFIED-LIVE** means observed from a real call to the zone using `spi
 - With the forbid active, `mint pause` was still issued (1951 ms, `aud` = pause, 60 s, signature valid). The forbid blocks restart only.
 - After `default-zone-policies` was re-activated in the console, `poll restart --until allowed` was issued on try 1 (3875 ms, `aud` = restart, signature valid). The click time was not recorded, so **time-to-restore was not measured**. It is at most the gap between activation and the first poll.
 - Not tested: whether a restart token issued before the forbid stays valid until `exp`. The docs say it does (§1).
+
+## 9. K3 results (2026-10-01)
+
+Labels follow §8. **VERIFIED-LIVE** here means observed while the full stack ran with `CREDENTIAL_MODE=keycard`: the worker minted with `KeycardCredentialBroker`, and fleet-api verified against the zone JWKS. No client secret or token was printed, logged or committed. Total mints: 54 (46 in the demo run, 3 for `INC-K3-001`, 5 for the live tests).
+
+### 9.1 Failure demos (VERIFIED-LIVE)
+
+- `gax demo run all`: **12/12 PASS**, 310.9 s. Every demo checked that its ledger rows carry `credential_mode` `KEYCARD` and that `/healthz` reports `auth_mode` `KEYCARD`. The full table is in `docs/failure-semantics.md` (Observed run: KEYCARD mode), and sanitized results are in `docs/evidence/keycard/`.
+- `credential_denied`: the operator activated `gax-zone-policies` while the demo probed `restart` every 10 s. The workflow's mint then failed with `access_denied`, and the description `Access to "fleet-api restart" is denied by Policy "gax-forbid-restart" in version 3 of Policy Set "gax-zone-policies".` went into the ledger row. The attempt was non-retryable, made 1 `execute_action` attempt and sent 0 restart requests to fleet-api. After `default-zone-policies` was re-activated, the same incident id reran VERIFIED.
+- `credential_transient`: SIMULATED in front of the mint (ADR 0002 §6), as labelled. Only attempt 3 called Keycard.
+
+### 9.2 Policy-set flip timing (VERIFIED-LIVE, upper bounds only)
+
+| Flip | Probes | Prompt to first changed probe |
+|---|---|---|
+| Activate `gax-zone-policies` (revoke) | ISSUED ×3, then DENIED | 33.7 s |
+| Re-activate `default-zone-policies` (restore) | DENIED ×5, then ISSUED | 53.4 s |
+
+The click times were not recorded, so these times include the operator's reaction time. This run does not separate propagation delay from click time. **Time-to-effect is still UNKNOWN.**
+
+### 9.3 Real-LLM incident (VERIFIED-LIVE)
+
+`INC-K3-001` (staging `orders-consumer`, "0 active members, lag climbing"): the real LLM proposed `restart_consumer` with cited runbook chunks, and policy-v1 returned ALLOW. It made 3 Keycard mints (`state`, `restart`, `state`) and was VERIFIED with `restart_count` +1. The ledger and the audit record both carry `credential_mode` `KEYCARD`. The JWT-shape scan found 0 hits in its 47 history events.
+
+### 9.4 Fixes found in K3
+
+- The secret scan matched only `eyJhbGciOi`. A Keycard RS256 header can serialize `kid` first, so it would not start with that prefix. The demo scan and the integration-test history scan now match any JWT shape and `Bearer <token>`. A unit test covers a `{"kid":...}`-first RS256 token.
+- fleet-api now refuses to start when `KEYCARD_ZONE_URL` is set and `CREDENTIAL_MODE` is not, the same rule as `build_broker`. Before this fix it silently ran LOCAL-ONLY.
+- `start-stack.ps1` printed `(LOCAL-ONLY auth)` unconditionally. It now prints the `auth_mode` it reads from `/healthz`.
+
+### 9.5 Still not tested
+
+- Whether a restart token issued before the forbid stays valid until `exp` (§8.5).
+- Precise time-to-effect of a policy-set flip.
