@@ -2,9 +2,13 @@ import hashlib
 import json
 import math
 import re
+import time
+import uuid
 from collections import Counter
 import httpx
 import jwt
+from cryptography.hazmat.primitives.asymmetric import rsa
+from keycardai.oauth.types.models import TokenResponse
 from gax.credentials.local_only_broker import verify
 from gax.llm import ProposalResult
 from gax.models import parse_proposal
@@ -130,3 +134,43 @@ class FailingSearchTestDouble:
     def __call__(self, query, k, rerank):
         self.calls += 1
         raise self.error
+
+
+class KeycardClientTestDouble:
+    def __init__(self, *outcomes, expires_in: int = 60):
+        self.outcomes = list(outcomes)
+        self.expires_in = expires_in
+        self.resources: list[str] = []
+
+    def client_credentials_grant(self, resource: str):
+        self.resources.append(resource)
+        outcome = self.outcomes.pop(0) if self.outcomes else None
+        if isinstance(outcome, Exception):
+            raise outcome
+        return TokenResponse(access_token=outcome or f"keycard-test-double-token-{uuid.uuid4().hex}", expires_in=self.expires_in)
+
+
+class KeycardZoneTestDouble:
+    ISSUER = "https://zone-test-double.keycard.example"
+
+    def __init__(self, kid: str = "test-double-kid"):
+        self.kid = kid
+        self.key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+    def jwks(self) -> dict:
+        jwk = jwt.algorithms.RSAAlgorithm.to_jwk(self.key.public_key(), as_dict=True)
+        return {"keys": [{**jwk, "kid": self.kid, "use": "sig", "alg": "RS256"}]}
+
+    def token(self, aud: str, iss: str = ISSUER, ttl: int = 60, key=None, **extra) -> str:
+        now = int(time.time())
+        claims = {"iss": iss, "aud": aud, "sub": "urn:app:gax-worker", "jti": uuid.uuid4().hex, "iat": now, "exp": now + ttl, **extra}
+        return jwt.encode(claims, key or self.key, algorithm="RS256", headers={"kid": self.kid})
+
+
+class StubJWKSClientTestDouble(jwt.PyJWKClient):
+    def __init__(self, zone: KeycardZoneTestDouble):
+        super().__init__("https://jwks-test-double.invalid/jwks")
+        self.zone = zone
+
+    def fetch_data(self):
+        return self.zone.jwks()

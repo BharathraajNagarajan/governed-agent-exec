@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Literal
 from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, SecretStr
 
@@ -17,7 +18,11 @@ class Settings(BaseModel):
     anthropic_api_key: SecretStr = SecretStr("")
     anthropic_model: str = "claude-sonnet-5"
     local_broker_signing_key: SecretStr = SecretStr("")
+    credential_mode: Literal["local-only", "keycard"] = "local-only"
     keycard_zone_url: str = ""
+    keycard_client_id: str = ""
+    keycard_client_secret: SecretStr = SecretStr("")
+    keycard_resource_prefix: str = "urn:gax:fleet-api"
 
 
 def get_settings(env_file: Path | None = ENV_FILE) -> Settings:

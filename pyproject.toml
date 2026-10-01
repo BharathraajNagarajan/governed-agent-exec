@@ -18,6 +18,7 @@ dependencies = [
     "fastapi==0.142.0",
     "uvicorn==0.54.0",
     "PyJWT==2.15.1",
+    "keycardai-oauth==0.31.3",
 ]
 
 [project.scripts]
@@ -33,4 +34,7 @@ where = ["src"]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
 addopts = "-ra --strict-markers"
-markers = ["integration: requires atlas-local on localhost:27017 and starts fleet-api"]
+markers = [
+    "integration: requires atlas-local on localhost:27017 and starts fleet-api",
+    "keycard: live calls to the Keycard zone (mints real tokens); skipped unless KEYCARD_LIVE=1",
+]
