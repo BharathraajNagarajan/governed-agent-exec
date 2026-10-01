@@ -240,6 +240,14 @@ class Demo:
     async def history(self, h: WorkflowHandle) -> dict:
         return summarize_history((await h.fetch_history()).events)
 
+    def keycard_checks(self) -> None:
+        rows = list(self.db[LEDGER].find({"workflow_id": {"$in": sorted({h.id for h in self.handles})}}, {"_id": 0, "credential_mode": 1}))
+        if rows:
+            modes = sorted({r.get("credential_mode") for r in rows}, key=str)
+            self.check("ledger rows have credential_mode KEYCARD", modes == ["KEYCARD"], {"rows": len(rows), "modes": modes})
+        health = self.fleet.get("/healthz").json()
+        self.check("fleet-api /healthz auth_mode KEYCARD", health.get("auth_mode") == "KEYCARD", health.get("auth_mode"))
+
     async def scan_secrets(self) -> None:
         blobs = [e.SerializeToString() for h in self.handles for e in (await h.fetch_history()).events]
         blobs.append(self.worker_log().encode())

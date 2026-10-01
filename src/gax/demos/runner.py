@@ -34,6 +34,8 @@ async def run_demo(name: str, s: Settings, client: Client) -> dict:
     try:
         d.reset()
         await module.run(d)
+        if d.broker.mode == "KEYCARD":
+            d.keycard_checks()
         await d.scan_secrets()
     except Exception as e:
         error = f"{type(e).__name__}: {e}"

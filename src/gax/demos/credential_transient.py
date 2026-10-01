@@ -23,3 +23,7 @@ async def run(d):
     d.check("state changed exactly once", after["restart_count"] - before["restart_count"] == 1,
             {"before": before["restart_count"], "after": after["restart_count"]})
     d.check("status VERIFIED", status == "VERIFIED", status)
+    if d.broker.mode == "KEYCARD":
+        d.check("history lastFailure says the transient was SIMULATED", "SIMULATED" in (last.get("last_failure") or ""), last.get("last_failure"))
+        d.note("KEYCARD mode: the 2 transient failures are SIMULATED in front of the real mint (Keycard has no fault injection, ADR 0002 §6). "
+               "The final execute_action mint is a real Keycard mint.")
