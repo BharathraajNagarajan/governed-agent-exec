@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "gax"
 version = "0.1.0"
-description = "Governed, durable execution of AI-proposed remediation actions: Claude proposes, versioned policy and approval decide, Temporal executes idempotently with per-attempt credentials, results are verified and audited."
+description = "Governed, durable execution of AI-proposed remediation actions: Claude proposes, versioned policy and approval decide, Temporal executes idempotently with per-attempt Keycard-issued credentials (LOCAL-ONLY offline mode), results are verified and audited."
 license = "MIT"
 requires-python = ">=3.12,<3.13"
 dependencies = [
