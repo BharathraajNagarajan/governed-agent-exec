@@ -1,6 +1,6 @@
 # Keycard findings (Phase K0: discovery)
 
-Date: 2026-09-30. Status: discovery only. No Keycard zone has been called. `src/`, `tests/`, `fleet_api/` and `scripts/` were not changed. The LOCAL-ONLY broker is still the only credential path, and ADR 0002 stays at PENDING.
+Date: 2026-09-30. Status: sections 1-6 are K0 discovery, written before any Keycard zone was called. §7 covers the console setup, and §8 the live spike results (2026-10-01) from `spikes/m0_5_keycard/spike.py`. `src/`, `tests/`, `fleet_api/` and `scripts/` were not changed. The LOCAL-ONLY broker is still the only credential path, and ADR 0002 stays at PENDING.
 
 Scope: what the official docs and the installed SDK say about replacing `LocalOnlyCredentialBroker` with Keycard, mapped against our credential boundary. Every statement below cites a docs URL, a `file:line` in the installed SDK, or a command that was run. Anything else is listed under UNKNOWN.
 
@@ -130,11 +130,11 @@ Paths are relative to `.venv/Lib/site-packages/`. Items marked **[executed]** we
 
 ## 3. UNKNOWN / NEEDS CONSOLE OR LIVE TEST
 
-1. **Revoking or denying an autonomous (client-credentials) application.** The revoke docs cover user-delegated grants only. It is unknown whether removing a dependency, or adding a Cedar forbid, takes effect for the next `client_credentials_grant` immediately, and which error code it returns (`access_denied` vs `insufficient_authorization`).
-2. **The error the zone returns for a client-credentials request to an undeclared or forbidden resource.** It could be a hard `access_denied` or a soft denial (HTTP 200 with the resource missing from `target`). A soft denial would *not* raise in the interceptor.
-3. **Discovery endpoint path.** The token-claims page says `/.well-known/openid-configuration` + `/openidconnect/jwks`, and the protect-an-API guide says `/.well-known/oauth-authorization-server`. Confirm which one the zone serves.
+1. **Revoking or denying an autonomous (client-credentials) application.** The revoke docs cover user-delegated grants only. It is unknown whether removing a dependency, or adding a Cedar forbid, takes effect for the next `client_credentials_grant` immediately, and which error code it returns (`access_denied` vs `insufficient_authorization`). **Resolved live (§8.3, §8.5):** a Cedar forbid inside an activated policy set denies the next `client_credentials_grant` with a hard `access_denied` (not `insufficient_authorization`), and re-activating the default set restores access. Propagation latency was not measured. Removing a dependency was not tested.
+2. **The error the zone returns for a client-credentials request to an undeclared or forbidden resource.** It could be a hard `access_denied` or a soft denial (HTTP 200 with the resource missing from `target`). A soft denial would *not* raise in the interceptor. **Resolved live (§8.3):** all denials were hard. An existing resource with no dependency gives `access_denied` (retryable False). A nonexistent resource gives `invalid_target`, which the SDK marks retryable True. No soft denial was observed.
+3. **Discovery endpoint path.** The token-claims page says `/.well-known/openid-configuration` + `/openidconnect/jwks`, and the protect-an-API guide says `/.well-known/oauth-authorization-server`. Confirm which one the zone serves. **Resolved live (§8.1):** both return 200 with identical documents. The JWKS needs an explicit User-Agent (403 otherwise).
 4. **Actual token lifetime for client-credentials tokens**, and whether a Resource can shorten it. The docs say 1 h for access tokens and don't say whether it is configurable. Ours is 60 s. **Resolved by the console (§7):** lifetime is configurable per resource, 1m-24h.
-5. **Claim contents of a client-credentials token**: the `sub` value, whether `scope` is present when none is requested, and the `target` claim format.
+5. **Claim contents of a client-credentials token**: the `sub` value, whether `scope` is present when none is requested, and the `target` claim format. **Resolved live (§8.2):** `sub` = `keycard_app_id` = `urn:app:gax-worker`, `aud` = the exact resource URN, and there is no `scope` claim and no `target` claim. `jti` is present.
 6. **Whether Cedar can see the requested `scope`** (`context.scopes`) on client credentials, so that per-action scopes on one resource could be policy-gated.
 7. **Rate limits on the token endpoint.** None are documented. A `run-all` mints many tokens in short bursts.
 8. **What "validating requests" bills.** It is unclear whether local JWKS validation in fleet-api counts as a transaction.
@@ -152,9 +152,9 @@ Paths are relative to `.venv/Lib/site-packages/`. Items marked **[executed]** we
 | `CredentialDenied` (non-retryable) | `ApplicationError type=KeycardAccessDenied, non_retryable=True` | `:521-527` [executed] | Different type string. `workflows.py:29` lists `"CredentialDenied"`, but the `non_retryable=True` flag already stops retries. Demo checks and the ledger use our names. |
 | `CredentialUnavailable` (retryable) | `KeycardMintFailed` (exchange path) or **the raw keycardai exception** (app-as-itself) | `:528`, `:556-559` [executed: `NetworkError`] | The type name is unstable across paths. The `credential_transient` demo asserts `last_failure_type == "CredentialUnavailable"`. |
 | `Credential.token` (`repr=False`) | `TokenResponse.access_token` | `models.py:79-88` | `TokenResponse` repr leaks the token. Copy it into our `Credential`. |
-| `Credential.expires_at` (60 s) | `TokenResponse.expires_in` | `models.py:91` | The docs say 1 h. A 60 s lifetime is not known to be available (UNKNOWN 4). |
+| `Credential.expires_at` (60 s) | `TokenResponse.expires_in` | `models.py:91`; §7, §8.2 | Credential Lifetime is configured at 1m per resource (VERIFIED-CONSOLE). `expires_in` = 60 and `exp - iat` = 60 were observed (VERIFIED-LIVE), matching our 60 s. |
 | `Credential.mode` = `LOCAL-ONLY` | none | n/a | Our label only, so we would need a `KEYCARD` mode for ledger and audit. |
-| Broker `revoke(action)` / `restore(action)` | Cedar forbid or dependency removal (application, resource), or grant PATCH (user-delegated only) | concepts/policies.md, admin/revoke-a-grant.md | There is no documented per-application revoke and restore API. It is not per-action unless there are per-action resources. Policy changes are versioned policy sets. UNKNOWN 1, 11. |
+| Broker `revoke(action)` / `restore(action)` | Policy-set activation flip: activate `gax-zone-policies` (attribute-matching Cedar forbid on gax-worker x `urn:gax:fleet-api:restart`) to revoke, re-activate `default-zone-policies` to restore | §8.4 (VERIFIED-CONSOLE), §8.5 (VERIFIED-LIVE) | It is per-action because resources are per-action. Revoke gives a hard `access_denied`, and pause stays issued. The flip is done by hand in the console. Scripting it needs the Management API (UNKNOWN 11). Propagation latency was not measured. |
 | Broker `set_transient(action, n)` | none | n/a | Keycard has no fault injection. The transient demo needs another driver (UNKNOWN). |
 | fleet-api HS256 `verify(token, key)` | RS256 + zone JWKS, pin `iss` + `aud` | token-claims.md; `oauth/server/verifier.py:95`, `:200`, `:420` | `TokenVerifier.verify_token` is `async` (`:363`) and fleet-api routes are sync, so we would need PyJWT `PyJWKClient` (needs `cryptography`, not in pyproject) or an async bridge. |
 | fleet-api `environment` / `action` / `target` claim checks | `aud` (resource) and `scope` | token-claims.md, policy-schema.md | There are no custom claims, so the per-action/target binding must come from separate resources (`aud`) or scopes. The SDK sends no scope (`:450-452`). |
@@ -173,16 +173,13 @@ Paths are relative to `.venv/Lib/site-packages/`. Items marked **[executed]** we
 9. **Credential type.** The SDK's app-as-itself path supports only `ClientSecret`. That is acceptable locally, since the secret stays in `.env`, but rules out workload identity for the `@grant` path.
 10. **Snapshot and verify reads.** Do `get_state` calls use a separate read resource with its own policy, or share the action resource?
 
-## 6. PROPOSED console setup checklist (proposal only; nothing has been created)
+## 6. Console setup checklist (written as a proposal in K0; steps 1-5 and 7 now exist, see §7 and §8)
 
-Each step needs to be checked against the console when access is available. Names are placeholders.
+This was written before console access. The zone, application, URN resources, dependencies and policy set have since been created, and step 7 was run live (§8). Steps 6 and 8 remain open (step 8 is in `docs/m0-findings.md`).
 
 1. **Zone**: use the organization's default zone or create a dev zone. Record the issuer `https://<zone-id>.keycard.cloud` as `KEYCARD_ZONE_URL` in `.env` only.
 2. **Application** `gax-worker`: confidential, client ID + secret (the SDK app-as-itself path requires `ClientSecret`). Put `KEYCARD_CLIENT_ID` and `KEYCARD_CLIENT_SECRET` in `.env` only, never in the repo or logs.
-3. **Resources** (bring your own, Keycard-issued tokens), depending on design question 1. Either:
-   - (a) one resource `http://localhost:8080` (fleet-api), or
-   - (b) per-action resources `http://localhost:8080/restart`, `/scale`, `/pause`, `/reset-offset`, plus a read resource `/state`.
-   First confirm localhost identifiers are accepted (UNKNOWN 10).
+3. **Resources** (Zone Provider / Keycard STS, Credential Lifetime 1m): per-action URN resources `urn:gax:fleet-api:restart`, `urn:gax:fleet-api:scale`, `urn:gax:fleet-api:pause` and `urn:gax:fleet-api:reset-offset`, plus the read resource `urn:gax:fleet-api:state`. URNs avoid localhost identifiers (UNKNOWN 10).
 4. **Dependencies**: `gax-worker` → each resource above (autonomous access).
 5. **Policies**: a permit for `gax-worker` on the resources. Prepare a separate forbid (`gax-worker`, restart resource) to publish and roll back for the denial demo. Test it in the policy tester (https://docs.keycard.ai/admin/access-policies/testing.md) before running it live.
 6. **Service account** for the Management API, if the demo harness is to toggle policy or dependencies by script (UNKNOWN 11).
@@ -197,3 +194,51 @@ Observed in the Keycard console:
 - The resource creation form ("Add manually") accepts URN identifiers (e.g. `urn:service:name`). Resources use the "Zone Provider (Keycard STS)" credential provider.
 - The resource form has "Credential Lifetime" under Advanced options: default 24h, range 1m-24h. This resolves UNKNOWN 4 (lifetime is configurable per resource). A 1m lifetime matches the LOCAL-ONLY broker's 60 s TTL.
 - Planned resources (one per action, the decision from design question 1): `urn:gax:fleet-api:state`, `urn:gax:fleet-api:restart`, `urn:gax:fleet-api:scale`, `urn:gax:fleet-api:pause` and `urn:gax:fleet-api:reset-offset`, each with a 1m lifetime. Status: being created; not yet verified by a live mint.
+
+## 8. K1 live results (2026-10-01)
+
+Labels: **VERIFIED-LIVE** means observed from a real call to the zone using `spikes/m0_5_keycard/spike.py` (Part A ran 2026-09-30, Part B on 2026-10-01). **VERIFIED-CONSOLE** means observed in the Keycard console. The spike prints decoded claims and error fields only. No client secret or access token was printed, logged or committed. Total mints: 16 (11 in Part A, 5 in Part B).
+
+### 8.1 Discovery and JWKS (VERIFIED-LIVE)
+
+- `<issuer>/.well-known/openid-configuration` and `<issuer>/.well-known/oauth-authorization-server` both returned 200 with identical documents. `issuer` equals `KEYCARD_ZONE_URL`. `token_endpoint` is `<issuer>/oauth/2/token` and `jwks_uri` is `<issuer>/openidconnect/jwks`. RS256 is the only signing algorithm. The grant types include `client_credentials` and token exchange.
+- The JWKS endpoint returned **HTTP 403** to PyJWT's default `Python-urllib` User-Agent, and 200 when an explicit `User-Agent` header was sent (`PyJWKClient(..., headers={"User-Agent": ...})`). A fleet-api verifier must set this header.
+
+### 8.2 Minting and claims (VERIFIED-LIVE)
+
+- All 5 resources (`urn:gax:fleet-api:{state,restart,scale,pause,reset-offset}`) were minted twice, for 10 mints. Latency was about 316-382 ms warm and about 1.2-2.4 s on the first call.
+- `expires_in` was 60 and `exp - iat` was 60, matching the 1m Credential Lifetime configured per resource.
+- Claims: `iss` is the zone and `aud` is the exact resource URN. `sub` and `keycard_app_id` are both `urn:app:gax-worker`, and `client_id` is `KEYCARD_CLIENT_ID`. There was no `scope` claim and no `target` claim. `jti` was present. The header `alg` was RS256.
+- `PyJWKClient` (with the User-Agent), RS256, with issuer and audience pinned: all 5 tokens were valid. Verifying against the wrong audience raised `InvalidAudienceError`.
+
+### 8.3 Denials (VERIFIED-LIVE)
+
+| Request | Exception | `error` | `retryable` (SDK) | Notes |
+|---|---|---|---|---|
+| `urn:gax:fleet-api:undeclared` (resource does not exist) | `OAuthProtocolError` | `invalid_target` | True | "Requested authorization for unknown resource". Also seen for a malformed request to `/events` without the zone prefix (1 wasted mint). |
+| `<issuer>/events` (Events API resource exists, no dependency from gax-worker) | `OAuthProtocolError` | `access_denied` | False | "Application "gax-worker" is not allowed to access "Events API"." 1790 ms. |
+| `urn:gax:fleet-api:restart` with the forbid active | `OAuthProtocolError` | `access_denied` | False | "Access to "fleet-api restart" is denied by Policy "gax-forbid-restart" in version 3 of Policy Set "gax-zone-policies"." 2431 ms. |
+
+- **No soft denial was observed.** Every denial raised an exception, and no token was issued with a narrowed audience or a `target` claim.
+- The SDK's `PERMANENT_ERROR_CODES` (§2.3) does not include `invalid_target`, so the SDK reports it as retryable. A Keycard broker behind our interface must map `invalid_target` to `CredentialDenied`, as well as `access_denied`.
+- The denial description names the policy and the policy set version. That is useful as ledger evidence.
+
+### 8.4 Console policy behaviour (VERIFIED-CONSOLE)
+
+- The active default set, `default-zone-policies`, is read-only. Changing it requires Duplicate, then editing the copy, then Activate. The copy is `gax-zone-policies` (schema 2026-06-18). A standalone policy created on schema 2026-03-16 could not be added to it (the picker showed a warning), so the forbid was created inside the set.
+- Cedar entity references such as `Keycard::Application::"urn:app:gax-worker"` did not match, and the test stayed Allow. Entity IDs are internal IDs, not identifiers. A forbid that matches on attributes works:
+
+  ```cedar
+  forbid(principal is Keycard::Application, action, resource is Keycard::Resource)
+  when { principal.identifier == "urn:app:gax-worker" && resource.identifier == "urn:gax:fleet-api:restart" };
+  ```
+
+- The set-level Run test gave gax-worker x restart = Deny (determining policy `<set-id>::policy0`, the forbid) and gax-worker x pause = Allow (`default-app-direct-access`). Policy tests evaluate the **saved** set, not unsaved edits.
+- Revoke = activate `gax-zone-policies`. Restore = re-activate `default-zone-policies`.
+
+### 8.5 Revoke and restore timing (VERIFIED-LIVE, partial)
+
+- With `gax-zone-policies` active, `poll restart --until denied` was denied on try 1 (2.4 s). The set had been activated before the poll started, so **time-to-effect was not measured**. This only shows that the denial was in effect.
+- With the forbid active, `mint pause` was still issued (1951 ms, `aud` = pause, 60 s, signature valid). The forbid blocks restart only.
+- After `default-zone-policies` was re-activated in the console, `poll restart --until allowed` was issued on try 1 (3875 ms, `aud` = restart, signature valid). The click time was not recorded, so **time-to-restore was not measured**. It is at most the gap between activation and the first poll.
+- Not tested: whether a restart token issued before the forbid stays valid until `exp`. The docs say it does (§1).

@@ -18,6 +18,9 @@ Observed results only. Run date: 2026-09-29. Host: Windows 11 Pro, PowerShell, D
 | python-dotenv | 1.2.3 |
 | anthropic | 1.9.0 |
 | pydantic | 2.13.5 |
+| keycardai-oauth (M0.5, venv only) | 0.31.3 |
+| keycardai-temporal (M0.5, venv only) | 0.4.1 |
+| PyJWT (M0.5) | 2.15.1 |
 
 ## Summary
 
@@ -27,7 +30,7 @@ Observed results only. Run date: 2026-09-29. Host: Windows 11 Pro, PowerShell, D
 | M0.2 atlas-local vector index + restart | PASS |
 | M0.3 Voyage embed + rerank + $vectorSearch | PASS |
 | M0.4 Anthropic ActionProposal + Pydantic | PASS |
-| M0.5 Keycard | PENDING PRIVATE-BETA ACCESS |
+| M0.5 Keycard | LIVE SPIKE RUN 2026-09-30 / 2026-10-01 (mint, verify, deny, restore). Not integrated. ADR 0002 unchanged. |
 
 ## M0.1 Temporal (`spikes/m0_1_temporal`)
 
@@ -66,7 +69,18 @@ Observed results only. Run date: 2026-09-29. Host: Windows 11 Pro, PowerShell, D
 
 ## M0.5 Keycard
 
-Status: PENDING PRIVATE-BETA ACCESS. No Keycard integration was attempted. `KEYCARD_ZONE_URL`, `KEYCARD_CLIENT_ID`, `KEYCARD_CLIENT_SECRET` are empty. See `docs/decisions/0002-keycard-integration.md`.
+Spike: `spikes/m0_5_keycard/spike.py` (`mint [resources...]`, `poll <resource> --until denied|allowed`). It calls `keycardai.oauth.Client.client_credentials_grant(resource=...)` directly with `ClientSecret`, and verifies with PyJWT `PyJWKClient`. It prints decoded claims and error fields only, never the secret or a token. Run 2026-09-30 and 2026-10-01 against a real zone, with application `urn:app:gax-worker` and per-action resources `urn:gax:fleet-api:{state,restart,scale,pause,reset-offset}` at a 1m Credential Lifetime. 16 mints in total. Full detail is in `docs/keycard-findings.md` §8. Nothing in `src/` uses Keycard. ADR 0002 status is unchanged.
+
+- Discovery: `/.well-known/openid-configuration` and `/.well-known/oauth-authorization-server` both return 200 and are identical. `token_endpoint` is `<issuer>/oauth/2/token`, `jwks_uri` is `<issuer>/openidconnect/jwks`, and RS256 is the only algorithm.
+- The JWKS returns 403 to PyJWT's default `Python-urllib` User-Agent and 200 with an explicit `User-Agent`.
+- Mint latency is about 316-382 ms warm and about 1.2-2.4 s on the first call (up to 3.9 s observed on 2026-10-01). `expires_in` = 60 and `exp - iat` = 60.
+- Claims: `iss` is the zone, `aud` is the exact resource URN, and `sub` = `keycard_app_id` = `urn:app:gax-worker`. There is no `scope` and no `target`. `jti` is present.
+- RS256 verification with issuer and audience pinned is valid for all 5 resources. A wrong audience gives `InvalidAudienceError`.
+- Denials are hard `OAuthProtocolError`s, and no soft denial was seen:
+  - An unknown resource gives `invalid_target`, which the SDK marks `retryable=True`.
+  - An existing resource with no dependency (Events API) gives `access_denied`, `retryable=False`.
+  - Restart under the Cedar forbid gives `access_denied`, `retryable=False`, and the description names the policy and the policy set version.
+- Revoke and restore is done by flipping which policy set is active in the console (`gax-zone-policies` with the forbid, or `default-zone-policies`). Pause stays issued while restart is denied. Propagation latency was not measured, because both polls hit the target state on try 1.
 
 ## Findings
 
@@ -86,4 +100,4 @@ Status: PENDING PRIVATE-BETA ACCESS. No Keycard integration was attempted. `KEYC
 - Temporal behaviour when the dev server itself is killed, and activity heartbeating.
 - atlas-local behaviour when the container is removed and recreated on the same volume (only `docker restart` was tested).
 - Anthropic refusal handling and server-side fallbacks; the spike checks `stop_reason` only by printing it.
-- Anything Keycard-related.
+- Keycard: integration through `src/` or `@grant`, policy-propagation latency, validity of a token minted before a forbid, token-endpoint rate limits, Management API (scripted policy flips), and audit-log `jti` correlation.
