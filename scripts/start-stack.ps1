@@ -79,5 +79,6 @@ if (Get-TrackedProcess "fleet-api") {
     Write-Host "fleet-api launcher pid=$($p.Id) real pid=$realPid"
 }
 Wait-Until "fleet-api ($FleetPort)" { Test-FleetHealthy } 30
-Write-Host "stack up. Temporal UI http://localhost:8233  fleet-api http://127.0.0.1:$FleetPort (LOCAL-ONLY auth)"
+$authMode = (Invoke-RestMethod "http://127.0.0.1:$FleetPort/healthz").auth_mode
+Write-Host "stack up. Temporal UI http://localhost:8233  fleet-api http://127.0.0.1:$FleetPort ($authMode auth)"
 if ($WithWorker) { & (Join-Path $PSScriptRoot "start-worker.ps1") }

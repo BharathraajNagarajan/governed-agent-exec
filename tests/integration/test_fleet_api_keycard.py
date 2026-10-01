@@ -48,6 +48,11 @@ def test_keycard_mode_requires_zone_url(mongo):
         create_app(Settings(mongo_uri=MONGO_URI, gax_db=TEST_DB, credential_mode="keycard"))
 
 
+def test_zone_url_without_credential_mode_refused(mongo):
+    with pytest.raises(NotImplementedError, match="CREDENTIAL_MODE"):
+        create_app(Settings(mongo_uri=MONGO_URI, gax_db=TEST_DB, keycard_zone_url="https://zone.example"))
+
+
 def test_state_requires_state_audience(api, zone):
     assert api.get(STATE, headers=bearer(zone.token("urn:gax:fleet-api:state"))).status_code == 200
     assert api.get(STATE, headers=bearer(zone.token("urn:gax:fleet-api:restart"))).status_code == 401

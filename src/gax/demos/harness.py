@@ -28,7 +28,7 @@ WORKER_LOG = GAX / "logs" / "worker.log"
 FLEET_LOG = GAX / "logs" / "fleet-api.err.log"
 WORKER_PIDS = GAX / "pids" / "worker.pid"
 CONTAINER = "gae-atlas-local"
-SECRET_MARKERS = (b"eyJhbGciOi", b"Bearer ")
+SECRET_PATTERN = re.compile(rb"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|eyJhbGciOi|Bearer [A-Za-z0-9._~+/=-]+")
 PASS, FAIL, NOT_REPRODUCED = "PASS", "FAIL", "NOT REPRODUCED"
 STILL_ACTIVE = 259
 
@@ -69,7 +69,7 @@ def final_attempt(history: dict, activity: str) -> Optional[dict]:
 
 
 def secret_hits(blobs: list[bytes]) -> int:
-    return sum(b.count(m) for b in blobs for m in SECRET_MARKERS)
+    return sum(len(SECRET_PATTERN.findall(b)) for b in blobs)
 
 
 def outcomes(rows: list[dict]) -> list[str]:

@@ -1,3 +1,4 @@
+import base64
 import pytest
 from pymongo.errors import ServerSelectionTimeoutError
 from temporalio.api.enums.v1 import EventType, RetryState
@@ -71,6 +72,18 @@ def test_summarize_history():
 def test_secret_hits():
     assert secret_hits([b"clean", b"x eyJhbGciOiJIUzI1NiJ9 Bearer y"]) == 2
     assert secret_hits([]) == 0
+
+
+def b64(data: bytes) -> bytes:
+    return base64.urlsafe_b64encode(data).rstrip(b"=")
+
+
+def test_secret_hits_detects_rs256_jwt_with_kid_first_header():
+    token = b".".join([b64(b'{"kid":"zone-key-1","alg":"RS256","typ":"JWT"}'), b64(b'{"aud":"urn:gax:fleet-api:restart","exp":1}'), b64(b"sig" * 20)])
+    assert not token.startswith(b"eyJhbGciOi")
+    assert secret_hits([b"history " + token + b" end"]) == 1
+    assert secret_hits([b"Bearer " + token]) == 1
+    assert secret_hits([b"Authorization: Bearer opaque-token_123"]) == 1
 
 
 def test_outcomes_fall_back_to_status_for_unfinished_attempts():

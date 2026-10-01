@@ -39,7 +39,7 @@ def mongo():
 @pytest.fixture(scope="session")
 def fleet_url(mongo, tmp_path_factory):
     port = free_port()
-    env = {**os.environ, "LOCAL_BROKER_SIGNING_KEY": TEST_KEY, "GAX_DB": TEST_DB, "MONGO_URI": MONGO_URI}
+    env = {**os.environ, "LOCAL_BROKER_SIGNING_KEY": TEST_KEY, "GAX_DB": TEST_DB, "MONGO_URI": MONGO_URI, "CREDENTIAL_MODE": "local-only"}
     log = open(tmp_path_factory.mktemp("fleet") / "fleet-api.log", "w")
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "fleet_api.app:create_app", "--factory", "--host", "127.0.0.1", "--port", str(port)],

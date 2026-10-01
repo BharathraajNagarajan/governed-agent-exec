@@ -10,7 +10,7 @@ from temporalio.exceptions import WorkflowAlreadyStartedError
 from temporalio.service import RPCError
 from gax.credentials import LocalOnlyCredentialBroker
 from gax.credentials.local_only_broker import GRANTS_COLLECTION, MongoGrantStore
-from gax.demos.harness import final_attempt, summarize_history
+from gax.demos.harness import final_attempt, secret_hits, summarize_history
 from gax.models import ActionParams, ActionProposal, Incident
 from gax.remediation.activities import AUDIT, INCIDENTS, LEDGER, RemediationActivities
 from gax.remediation.types import ApprovalInput, RemediationInput
@@ -137,6 +137,7 @@ def test_staging_restart_verified_once_and_no_credential_in_history(mongo):
         assert token and token not in history and token not in stored
     assert JWT_PREFIX not in history and "Bearer" not in history
     assert JWT_PREFIX not in stored
+    assert secret_hits([history.encode(), stored.encode()]) == 0
 
 
 def test_policy_deny_schedules_no_execute_action(mongo):

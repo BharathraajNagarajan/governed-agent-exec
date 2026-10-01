@@ -70,6 +70,8 @@ def _now() -> datetime:
 
 def create_app(settings: Optional[Settings] = None, verifier: Optional[KeycardVerifier] = None):
     settings = settings or get_settings()
+    if settings.keycard_zone_url and "credential_mode" not in settings.model_fields_set:
+        raise NotImplementedError("KEYCARD_ZONE_URL is set but CREDENTIAL_MODE is not; set CREDENTIAL_MODE=local-only or keycard (ADR 0002)")
     keycard = settings.credential_mode == "keycard"
     auth_mode = KEYCARD_MODE if keycard else MODE
     key = settings.local_broker_signing_key.get_secret_value()
