@@ -1,0 +1,232 @@
+{
+  "name": "approval_worker_restart",
+  "title": "Real worker hard-killed during an approval wait; a new worker accepts the approval",
+  "status": "PASS",
+  "duration_s": 22.0,
+  "finished_at": "2026-10-01T11:19:39.349291+00:00",
+  "error": null,
+  "checks": [
+    {
+      "name": "reached AWAITING_APPROVAL",
+      "ok": true,
+      "observed": "AWAITING_APPROVAL",
+      "reproduce": true
+    },
+    {
+      "name": "real worker PID hard-killed during approval wait",
+      "ok": true,
+      "observed": {
+        "fleet_counters": {},
+        "launcher_pid": 20720,
+        "real_pid": 20564
+      },
+      "reproduce": true
+    },
+    {
+      "name": "workflow still RUNNING with no worker",
+      "ok": true,
+      "observed": "RUNNING",
+      "reproduce": false
+    },
+    {
+      "name": "approve Update returned APPROVED",
+      "ok": true,
+      "observed": "APPROVED",
+      "reproduce": false
+    },
+    {
+      "name": "Update accepted by a workflow task on the new worker",
+      "ok": true,
+      "observed": {
+        "event_id": 21,
+        "update": "approve",
+        "worker_identity": "20732@<host>",
+        "new_pid": 20732,
+        "killed_pid": 20564
+      },
+      "reproduce": false
+    },
+    {
+      "name": "nothing re-proposed or re-evaluated",
+      "ok": true,
+      "observed": [
+        "propose_action",
+        "evaluate_policy",
+        "snapshot_state",
+        "execute_action",
+        "verify_outcome",
+        "record_audit"
+      ],
+      "reproduce": false
+    },
+    {
+      "name": "pause applied once: ledger [APPLIED], pause_pipeline=1, paused",
+      "ok": true,
+      "observed": {
+        "ledger": [
+          "APPLIED"
+        ],
+        "counters": {
+          "get_state": 2,
+          "pause_pipeline": 1
+        },
+        "paused": [
+          false,
+          true
+        ]
+      },
+      "reproduce": false
+    },
+    {
+      "name": "audit record present with approval",
+      "ok": true,
+      "observed": {
+        "audit_id": "DEMO-APPROVAL-WORKER-RESTART-20261001041917:01a0f730-ac9e-7aec-9db6-cb7da1a8476c",
+        "approval": {
+          "decision": "APPROVED",
+          "by": "demo-operator",
+          "comment": "approved after worker restart",
+          "at": "2026-10-01T11:19:35.567469+00:00"
+        }
+      },
+      "reproduce": false
+    },
+    {
+      "name": "restarted worker logged its real pid",
+      "ok": true,
+      "observed": 20732,
+      "reproduce": false
+    },
+    {
+      "name": "status VERIFIED",
+      "ok": true,
+      "observed": "VERIFIED",
+      "reproduce": false
+    },
+    {
+      "name": "ledger rows have credential_mode KEYCARD",
+      "ok": true,
+      "observed": {
+        "rows": 1,
+        "modes": [
+          "KEYCARD"
+        ]
+      },
+      "reproduce": false
+    },
+    {
+      "name": "fleet-api /healthz auth_mode KEYCARD",
+      "ok": true,
+      "observed": "KEYCARD",
+      "reproduce": false
+    },
+    {
+      "name": "no credential material in workflow history or worker log",
+      "ok": true,
+      "observed": {
+        "histories": 1,
+        "hits": 0
+      },
+      "reproduce": false
+    }
+  ],
+  "notes": [],
+  "incidents": [
+    {
+      "workflow_id": "DEMO-APPROVAL-WORKER-RESTART-20261001041917",
+      "run_id": "01a0f730-ac9e-7aec-9db6-cb7da1a8476c"
+    }
+  ],
+  "evidence": {
+    "worker": {
+      "killed_pid": 20564,
+      "restarted_pid": 20732,
+      "fleet_counters": {},
+      "launcher_pid": 20720,
+      "real_pid": 20564
+    },
+    "kill_to_approval_s": 17.9,
+    "update": {
+      "event_id": 21,
+      "update": "approve",
+      "worker_identity": "20732@<host>"
+    },
+    "history": {
+      "scheduled": [
+        "propose_action",
+        "evaluate_policy",
+        "snapshot_state",
+        "execute_action",
+        "verify_outcome",
+        "record_audit"
+      ],
+      "attempts": [
+        {
+          "activity": "propose_action",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "evaluate_policy",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "snapshot_state",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "execute_action",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "verify_outcome",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "record_audit",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        }
+      ],
+      "completed": [
+        "propose_action",
+        "evaluate_policy",
+        "snapshot_state",
+        "execute_action",
+        "verify_outcome",
+        "record_audit"
+      ],
+      "failures": []
+    },
+    "ledger": [
+      {
+        "attempt": 1,
+        "status": "APPLIED",
+        "run_id": "01a0f730-ac9e-7aec-9db6-cb7da1a8476c",
+        "outcome": "APPLIED",
+        "error": null,
+        "at": "2026-10-01 11:19:37.631000"
+      }
+    ],
+    "counters": {
+      "get_state": 2,
+      "pause_pipeline": 1
+    },
+    "audit_approval": {
+      "decision": "APPROVED",
+      "by": "demo-operator",
+      "comment": "approved after worker restart",
+      "at": "2026-10-01T11:19:35.567469+00:00"
+    }
+  }
+}

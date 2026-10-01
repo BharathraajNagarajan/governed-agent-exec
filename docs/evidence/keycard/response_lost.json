@@ -1,0 +1,182 @@
+{
+  "name": "response_lost",
+  "title": "fleet-api commits the restart, then drops the response",
+  "status": "PASS",
+  "duration_s": 3.9,
+  "finished_at": "2026-10-01T11:17:25.196904+00:00",
+  "error": null,
+  "checks": [
+    {
+      "name": "fleet-api committed then dropped the response",
+      "ok": true,
+      "observed": [
+        "FAULT commit-then-drop action=restart_consumer idempotency_key=DEMO-RESPONSE-LOST-20261001041721:execute_action"
+      ],
+      "reproduce": true
+    },
+    {
+      "name": "ledger attempts TRANSPORT_ERROR, REPLAYED",
+      "ok": true,
+      "observed": [
+        "TRANSPORT_ERROR",
+        "REPLAYED"
+      ],
+      "reproduce": false
+    },
+    {
+      "name": "history: execute_action attempt 2, lastFailure transport error",
+      "ok": true,
+      "observed": {
+        "activity": "execute_action",
+        "attempt": 2,
+        "last_failure": "fleet-api transport error: RemoteProtocolError",
+        "last_failure_type": "FleetUnavailable"
+      },
+      "reproduce": false
+    },
+    {
+      "name": "fleet-api received 2 restart requests",
+      "ok": true,
+      "observed": {
+        "get_state": 2,
+        "restart_consumer": 2
+      },
+      "reproduce": false
+    },
+    {
+      "name": "state changed exactly once",
+      "ok": true,
+      "observed": {
+        "before": 0,
+        "after": 1
+      },
+      "reproduce": false
+    },
+    {
+      "name": "status VERIFIED",
+      "ok": true,
+      "observed": "VERIFIED",
+      "reproduce": false
+    },
+    {
+      "name": "ledger rows have credential_mode KEYCARD",
+      "ok": true,
+      "observed": {
+        "rows": 2,
+        "modes": [
+          "KEYCARD"
+        ]
+      },
+      "reproduce": false
+    },
+    {
+      "name": "fleet-api /healthz auth_mode KEYCARD",
+      "ok": true,
+      "observed": "KEYCARD",
+      "reproduce": false
+    },
+    {
+      "name": "no credential material in workflow history or worker log",
+      "ok": true,
+      "observed": {
+        "histories": 1,
+        "hits": 0
+      },
+      "reproduce": false
+    }
+  ],
+  "notes": [],
+  "incidents": [
+    {
+      "workflow_id": "DEMO-RESPONSE-LOST-20261001041721",
+      "run_id": "01a0f72e-e71f-7366-beee-cea6d76efd6f"
+    }
+  ],
+  "evidence": {
+    "faults": [
+      {
+        "action": "restart_consumer",
+        "drop_next": 1
+      }
+    ],
+    "ledger": [
+      {
+        "attempt": 1,
+        "status": "FAILED",
+        "run_id": "01a0f72e-e71f-7366-beee-cea6d76efd6f",
+        "outcome": "TRANSPORT_ERROR",
+        "error": "RemoteProtocolError",
+        "at": "2026-10-01 11:17:22.054000"
+      },
+      {
+        "attempt": 2,
+        "status": "APPLIED",
+        "run_id": "01a0f72e-e71f-7366-beee-cea6d76efd6f",
+        "outcome": "REPLAYED",
+        "error": null,
+        "at": "2026-10-01 11:17:23.702000"
+      }
+    ],
+    "history": {
+      "scheduled": [
+        "propose_action",
+        "evaluate_policy",
+        "snapshot_state",
+        "execute_action",
+        "verify_outcome",
+        "record_audit"
+      ],
+      "attempts": [
+        {
+          "activity": "propose_action",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "evaluate_policy",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "snapshot_state",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "execute_action",
+          "attempt": 2,
+          "last_failure": "fleet-api transport error: RemoteProtocolError",
+          "last_failure_type": "FleetUnavailable"
+        },
+        {
+          "activity": "verify_outcome",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "record_audit",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        }
+      ],
+      "completed": [
+        "propose_action",
+        "evaluate_policy",
+        "snapshot_state",
+        "execute_action",
+        "verify_outcome",
+        "record_audit"
+      ],
+      "failures": []
+    },
+    "counters": {
+      "get_state": 2,
+      "restart_consumer": 2
+    }
+  }
+}

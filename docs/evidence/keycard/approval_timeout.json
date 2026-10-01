@@ -1,0 +1,188 @@
+{
+  "name": "approval_timeout",
+  "title": "pause_pipeline needs approval: timeout, reject and approve paths",
+  "status": "PASS",
+  "duration_s": 8.8,
+  "finished_at": "2026-10-01T11:19:16.413719+00:00",
+  "error": null,
+  "checks": [
+    {
+      "name": "reached AWAITING_APPROVAL",
+      "ok": true,
+      "observed": "AWAITING_APPROVAL",
+      "reproduce": false
+    },
+    {
+      "name": "approval timed out after 5s",
+      "ok": true,
+      "observed": {
+        "status": "APPROVAL_TIMEOUT",
+        "approval": {
+          "decision": "TIMEOUT",
+          "timeout_seconds": 5
+        }
+      },
+      "reproduce": true
+    },
+    {
+      "name": "not executed: no execute_action scheduled, pause counter 0",
+      "ok": true,
+      "observed": {
+        "scheduled": [
+          "propose_action",
+          "evaluate_policy",
+          "record_audit"
+        ],
+        "counters": {}
+      },
+      "reproduce": false
+    },
+    {
+      "name": "late approval after timeout is rejected",
+      "ok": true,
+      "observed": "rejected: RPCError: workflow execution already completed",
+      "reproduce": false
+    },
+    {
+      "name": "reject path: REJECTED, not executed",
+      "ok": true,
+      "observed": {
+        "status": "REJECTED",
+        "approval": {
+          "decision": "REJECTED",
+          "by": "demo-operator",
+          "comment": "not during business hours",
+          "at": "2026-10-01T11:19:13.635710+00:00"
+        }
+      },
+      "reproduce": false
+    },
+    {
+      "name": "approve path: VERIFIED, paused once",
+      "ok": true,
+      "observed": {
+        "status": "VERIFIED",
+        "ledger": [
+          "APPLIED"
+        ]
+      },
+      "reproduce": false
+    },
+    {
+      "name": "ledger rows have credential_mode KEYCARD",
+      "ok": true,
+      "observed": {
+        "rows": 1,
+        "modes": [
+          "KEYCARD"
+        ]
+      },
+      "reproduce": false
+    },
+    {
+      "name": "fleet-api /healthz auth_mode KEYCARD",
+      "ok": true,
+      "observed": "KEYCARD",
+      "reproduce": false
+    },
+    {
+      "name": "no credential material in workflow history or worker log",
+      "ok": true,
+      "observed": {
+        "histories": 3,
+        "hits": 0
+      },
+      "reproduce": false
+    }
+  ],
+  "notes": [],
+  "incidents": [
+    {
+      "workflow_id": "DEMO-APPROVAL-TIMEOUT-20261001041907-TIMEOUT",
+      "run_id": "01a0f730-8677-7669-a338-e3eb910edfea"
+    },
+    {
+      "workflow_id": "DEMO-APPROVAL-TIMEOUT-20261001041907-REJECT",
+      "run_id": "01a0f730-9c6e-74b9-be46-e96be717d9cb"
+    },
+    {
+      "workflow_id": "DEMO-APPROVAL-TIMEOUT-20261001041907-APPROVE",
+      "run_id": "01a0f730-9e86-7152-880c-1d0939ab1197"
+    }
+  ],
+  "evidence": {
+    "timeout": {
+      "history": {
+        "scheduled": [
+          "propose_action",
+          "evaluate_policy",
+          "record_audit"
+        ],
+        "attempts": [
+          {
+            "activity": "propose_action",
+            "attempt": 1,
+            "last_failure": null,
+            "last_failure_type": null
+          },
+          {
+            "activity": "evaluate_policy",
+            "attempt": 1,
+            "last_failure": null,
+            "last_failure_type": null
+          },
+          {
+            "activity": "record_audit",
+            "attempt": 1,
+            "last_failure": null,
+            "last_failure_type": null
+          }
+        ],
+        "completed": [
+          "propose_action",
+          "evaluate_policy",
+          "record_audit"
+        ],
+        "failures": []
+      },
+      "counters": {},
+      "approval": {
+        "decision": "TIMEOUT",
+        "timeout_seconds": 5
+      }
+    },
+    "reject": {
+      "status": "REJECTED",
+      "approval": {
+        "decision": "REJECTED",
+        "by": "demo-operator",
+        "comment": "not during business hours",
+        "at": "2026-10-01T11:19:13.635710+00:00"
+      },
+      "counters": {}
+    },
+    "approve": {
+      "status": "VERIFIED",
+      "approval": {
+        "decision": "APPROVED",
+        "by": "demo-operator",
+        "comment": "approved",
+        "at": "2026-10-01T11:19:14.196447+00:00"
+      },
+      "ledger": [
+        {
+          "attempt": 1,
+          "status": "APPLIED",
+          "run_id": "01a0f730-9e86-7152-880c-1d0939ab1197",
+          "outcome": "APPLIED",
+          "error": null,
+          "at": "2026-10-01 11:19:15.076000"
+        }
+      ],
+      "counters": {
+        "get_state": 2,
+        "pause_pipeline": 1
+      }
+    }
+  }
+}

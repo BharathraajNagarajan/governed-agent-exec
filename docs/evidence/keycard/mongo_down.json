@@ -1,0 +1,206 @@
+{
+  "name": "mongo_down",
+  "title": "atlas-local stopped while an approved incident proceeds, then started again",
+  "status": "PASS",
+  "duration_s": 28.6,
+  "finished_at": "2026-10-01T11:21:19.505958+00:00",
+  "error": null,
+  "checks": [
+    {
+      "name": "reached AWAITING_APPROVAL",
+      "ok": true,
+      "observed": "AWAITING_APPROVAL",
+      "reproduce": false
+    },
+    {
+      "name": "atlas-local stopped",
+      "ok": true,
+      "observed": {
+        "docker_stop_s": 2.3,
+        "docker_stop_rc": 0,
+        "container_exit_code": "137",
+        "running": "false"
+      },
+      "reproduce": true
+    },
+    {
+      "name": "retryable activity failures while mongo is down",
+      "ok": true,
+      "observed": [
+        {
+          "activity": "snapshot_state",
+          "attempt": 3,
+          "last_failure": "mongo unavailable: ServerSelectionTimeoutError"
+        }
+      ],
+      "reproduce": true
+    },
+    {
+      "name": "lastFailure names the cause (not truncated by the server)",
+      "ok": true,
+      "observed": [
+        {
+          "activity": "snapshot_state",
+          "attempt": 3,
+          "last_failure": "mongo unavailable: ServerSelectionTimeoutError"
+        }
+      ],
+      "reproduce": false
+    },
+    {
+      "name": "atlas-local back",
+      "ok": true,
+      "observed": {
+        "down_after_approval_s": 18.5,
+        "mongo_ready_after_start_s": 6.2
+      },
+      "reproduce": false
+    },
+    {
+      "name": "history shows retried activities with lastFailure",
+      "ok": true,
+      "observed": [
+        {
+          "activity": "snapshot_state",
+          "attempt": 4,
+          "last_failure": "mongo unavailable: ServerSelectionTimeoutError",
+          "last_failure_type": "MongoUnavailable"
+        }
+      ],
+      "reproduce": false
+    },
+    {
+      "name": "audit record exists",
+      "ok": true,
+      "observed": {
+        "_id": "DEMO-MONGO-DOWN-20261001042050:01a0f732-1a0b-73ea-85c6-ce959195bb87",
+        "status": "VERIFIED"
+      },
+      "reproduce": false
+    },
+    {
+      "name": "paused once",
+      "ok": true,
+      "observed": {
+        "get_state": 2,
+        "pause_pipeline": 1
+      },
+      "reproduce": false
+    },
+    {
+      "name": "status VERIFIED",
+      "ok": true,
+      "observed": "VERIFIED",
+      "reproduce": false
+    },
+    {
+      "name": "ledger rows have credential_mode KEYCARD",
+      "ok": true,
+      "observed": {
+        "rows": 1,
+        "modes": [
+          "KEYCARD"
+        ]
+      },
+      "reproduce": false
+    },
+    {
+      "name": "fleet-api /healthz auth_mode KEYCARD",
+      "ok": true,
+      "observed": "KEYCARD",
+      "reproduce": false
+    },
+    {
+      "name": "no credential material in workflow history or worker log",
+      "ok": true,
+      "observed": {
+        "histories": 1,
+        "hits": 0
+      },
+      "reproduce": false
+    }
+  ],
+  "notes": [],
+  "incidents": [
+    {
+      "workflow_id": "DEMO-MONGO-DOWN-20261001042050",
+      "run_id": "01a0f732-1a0b-73ea-85c6-ce959195bb87"
+    }
+  ],
+  "evidence": {
+    "stop": {
+      "docker_stop_s": 2.3,
+      "docker_stop_rc": 0,
+      "container_exit_code": "137",
+      "running": "false"
+    },
+    "pending_while_down": [
+      {
+        "activity": "snapshot_state",
+        "attempt": 3,
+        "last_failure": "mongo unavailable: ServerSelectionTimeoutError"
+      }
+    ],
+    "restart": {
+      "down_after_approval_s": 18.5,
+      "mongo_ready_after_start_s": 6.2
+    },
+    "history": {
+      "scheduled": [
+        "propose_action",
+        "evaluate_policy",
+        "snapshot_state",
+        "execute_action",
+        "verify_outcome",
+        "record_audit"
+      ],
+      "attempts": [
+        {
+          "activity": "propose_action",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "evaluate_policy",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "snapshot_state",
+          "attempt": 4,
+          "last_failure": "mongo unavailable: ServerSelectionTimeoutError",
+          "last_failure_type": "MongoUnavailable"
+        },
+        {
+          "activity": "execute_action",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "verify_outcome",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        },
+        {
+          "activity": "record_audit",
+          "attempt": 1,
+          "last_failure": null,
+          "last_failure_type": null
+        }
+      ],
+      "completed": [
+        "propose_action",
+        "evaluate_policy",
+        "snapshot_state",
+        "execute_action",
+        "verify_outcome",
+        "record_audit"
+      ],
+      "failures": []
+    }
+  }
+}
