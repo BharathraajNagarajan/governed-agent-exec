@@ -133,13 +133,13 @@ Paths are relative to `.venv/Lib/site-packages/`. Items marked **[executed]** we
 1. **Revoking or denying an autonomous (client-credentials) application.** The revoke docs cover user-delegated grants only. It is unknown whether removing a dependency, or adding a Cedar forbid, takes effect for the next `client_credentials_grant` immediately, and which error code it returns (`access_denied` vs `insufficient_authorization`).
 2. **The error the zone returns for a client-credentials request to an undeclared or forbidden resource.** It could be a hard `access_denied` or a soft denial (HTTP 200 with the resource missing from `target`). A soft denial would *not* raise in the interceptor.
 3. **Discovery endpoint path.** The token-claims page says `/.well-known/openid-configuration` + `/openidconnect/jwks`, and the protect-an-API guide says `/.well-known/oauth-authorization-server`. Confirm which one the zone serves.
-4. **Actual token lifetime for client-credentials tokens**, and whether a Resource can shorten it. The docs say 1 h for access tokens and don't say whether it is configurable. Ours is 60 s.
+4. **Actual token lifetime for client-credentials tokens**, and whether a Resource can shorten it. The docs say 1 h for access tokens and don't say whether it is configurable. Ours is 60 s. **Resolved by the console (§7):** lifetime is configurable per resource, 1m-24h.
 5. **Claim contents of a client-credentials token**: the `sub` value, whether `scope` is present when none is requested, and the `target` claim format.
 6. **Whether Cedar can see the requested `scope`** (`context.scopes`) on client credentials, so that per-action scopes on one resource could be policy-gated.
 7. **Rate limits on the token endpoint.** None are documented. A `run-all` mints many tokens in short bursts.
 8. **What "validating requests" bills.** It is unclear whether local JWKS validation in fleet-api counts as a transaction.
 9. **Private-beta plan terms.** It is unknown whether the account is on Starter's 5,000/mo hard cap or a beta allocation, and what happens at the cap (presumably mint failures; it is not documented what code they return).
-10. **Whether `http://localhost:<port>` is accepted as a Resource identifier** for a non-public API. The token-claims page shows `http://localhost:9090` as an example `aud`, but it is not tested.
+10. **Whether `http://localhost:<port>` is accepted as a Resource identifier** for a non-public API. The token-claims page shows `http://localhost:9090` as an example `aud`, but it is not tested. **Avoided (§7):** URN identifiers are used instead of localhost URLs.
 11. **Service accounts for the Management API.** The revoke page says "authenticate using service account credentials". Creating one, and its permissions for scripted revoke/restore in demos, is not documented on the pages fetched.
 12. **The audit event fields for client-credentials issuance**, and whether `jti` there matches the token `jti` so that fleet-api's `credential_jti` can be correlated.
 
@@ -188,3 +188,12 @@ Each step needs to be checked against the console when access is available. Name
 6. **Service account** for the Management API, if the demo harness is to toggle policy or dependencies by script (UNKNOWN 11).
 7. **Verify by hand before writing code**: one `client_credentials_grant` from a scratch script, then decode the token header and claims (never print the token). Confirm `iss`, `aud`, `exp - iat`, `jti`, `scope` and `target`. Fetch the JWKS and confirm the discovery path (UNKNOWN 3, 4, 5).
 8. **Record** the results in `docs/m0-findings.md`, per ADR 0002 step 7.
+
+## 7. K1 console setup (in progress, 2026-09-30)
+
+Observed in the Keycard console:
+
+- Application `gax-worker` created, identifier `urn:app:gax-worker`, consent Implicit, credential type "Client ID & Secret" (the type the SDK app-as-itself path requires, see §2.1). Values are stored in `.env` only.
+- The resource creation form ("Add manually") accepts URN identifiers (e.g. `urn:service:name`). Resources use the "Zone Provider (Keycard STS)" credential provider.
+- The resource form has "Credential Lifetime" under Advanced options: default 24h, range 1m-24h. This resolves UNKNOWN 4 (lifetime is configurable per resource). A 1m lifetime matches the LOCAL-ONLY broker's 60 s TTL.
+- Planned resources (one per action, the decision from design question 1): `urn:gax:fleet-api:state`, `urn:gax:fleet-api:restart`, `urn:gax:fleet-api:scale`, `urn:gax:fleet-api:pause` and `urn:gax:fleet-api:reset-offset`, each with a 1m lifetime. Status: being created; not yet verified by a live mint.
