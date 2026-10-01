@@ -11,7 +11,7 @@ One demo per failure-matrix row (docs/design.md). Every demo runs against the li
 
 `demo run` starts a worker via `scripts\start-worker.ps1` when none is tracked and stops it at the end. Results: `.gax/demo-results/<name>.json` (every check with its observed value, notes, incident ids, evidence) and `.gax/demo-results/summary.json`. Sanitized copies from the observed run below are in [docs/evidence/](evidence/).
 
-A demo is **PASS** only if every check passes, **NOT REPRODUCED** if any check marked as reproducing the failure fails (for example no 429 occurred), otherwise **FAIL**. Every demo also scans all its workflow histories and its slice of the worker log for `eyJhbGciOi` and `Bearer `.
+A demo is **PASS** only if every check passes, **NOT REPRODUCED** if any check marked as reproducing the failure fails (for example no 429 occurred), otherwise **FAIL**. Every demo also scans all its workflow histories and its slice of the worker log for any JWT (`eyJ<header>.eyJ<payload>.<signature>`), the `eyJhbGciOi` prefix, and `Bearer <token>`.
 
 Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal-file` path) and skip retrieval (`retrieve=False`, CLI `--no-retrieval`). No LLM or Voyage calls are made, so runs are deterministic and cost nothing.
 
@@ -53,6 +53,39 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 | voyage_429 | PASS | 64.0 | 7/7 |
 | mongo_down | PASS | 19.9 | 10/10 |
 | duplicate_start | PASS | 16.5 | 7/7 |
+
+## Observed run: KEYCARD mode
+
+`gax demo run all` with `CREDENTIAL_MODE=keycard`, 2026-10-01 04:16 to 04:21 PDT (11:16 to 11:21 UTC). Host Windows 11, Python 3.12.10, Temporal CLI 1.9.1 (Server 1.32.0), temporalio 1.33.0, keycardai-oauth 0.31.3, PyJWT 2.15.1, atlas-local `preview`. The worker printed `credential_mode=KEYCARD`, and fleet-api `/healthz` reported `auth_mode` `KEYCARD`. Every credential was a real Keycard client-credentials token, verified by fleet-api against the zone JWKS. All 12 demos passed in one run, 310.9 s total as measured by the runner. Sanitized results: [docs/evidence/keycard/](evidence/keycard/).
+
+In this mode every demo has two extra checks: all of its ledger rows carry `credential_mode` `KEYCARD` (when it wrote any rows), and `/healthz` reports `auth_mode` `KEYCARD`. The secret scan (any JWT, the `eyJhbGciOi` prefix, or `Bearer <token>`) found 0 hits in every demo. Keycard RS256 headers do not have to start with `eyJhbGciOi`, so the scan matches the JWT shape, not that prefix.
+
+| Demo | Result | Seconds | Checks |
+|---|---|---|---|
+| worker_kill | PASS | 35.2 | 11/11 |
+| fleet_5xx | PASS | 6.2 | 9/9 |
+| response_lost | PASS | 3.9 | 9/9 |
+| credential_denied | PASS | 91.7 | 14/14 |
+| credential_transient | PASS | 5.4 | 11/11 |
+| policy_deny | PASS | 0.5 | 8/8 |
+| approval_timeout | PASS | 8.8 | 9/9 |
+| approval_worker_restart | PASS | 22.0 | 13/13 |
+| llm_malformed | PASS | 0.5 | 7/7 |
+| voyage_429 | PASS | 67.9 | 9/9 |
+| mongo_down | PASS | 28.6 | 12/12 |
+| duplicate_start | PASS | 27.6 | 9/9 |
+
+**credential_denied (KEYCARD).** Revocation is a Keycard policy, not simulated (ADR 0002 §5). The demo printed `ACTIVATE gax-zone-policies in the Keycard console now` and then probed with a real mint (`restart_consumer`) every 10 s. The operator activated the set. Probes 1-3 were issued and probe 4 was denied, 33.7 s after the prompt. The incident then ran:
+
+- Ledger `[CREDENTIAL_DENIED]`, error `KEYCARD access_denied for urn:gax:fleet-api:restart: Access to "fleet-api restart" is denied by Policy "gax-forbid-restart" in version 3 of Policy Set "gax-zone-policies".`
+- History: exactly 1 `execute_action` attempt, `CredentialDenied`, `non_retryable=true`, `RETRY_STATE_NON_RETRYABLE_FAILURE`.
+- Counters `{get_state: 1}`, so fleet-api received 0 restart requests. The worker log shows `KEYCARD broker CredentialDenied` for this incident.
+
+The demo then printed `RE-ACTIVATE default-zone-policies now`. Probes 1-5 were denied and probe 6 was issued, 53.4 s after the prompt. The rerun of the same incident id was VERIFIED with ledger `[APPLIED]`, and `restart_count` went 0 → 1 with `restart_consumer=1` overall. The operator's click times were not recorded, so these elapsed times run from the prompt to the first changed probe. They are upper bounds on time-to-effect and do not measure it.
+
+**credential_transient (KEYCARD).** The transient failure is **SIMULATED**: Keycard has no fault injection (ADR 0002 §6). Both failed attempts raised `CredentialUnavailable` in front of the mint without calling Keycard. History lastFailure was `SIMULATED transient failure in front of KEYCARD for restart_consumer`, and an added check confirms the word SIMULATED. The ledger was `[CREDENTIAL_UNAVAILABLE, CREDENTIAL_UNAVAILABLE, APPLIED]`, and attempt 3 minted a real Keycard token. fleet-api received 1 restart, and the result was VERIFIED. The demo records a NOTE saying the same.
+
+**Keycard mints.** The run made 46 mints: 36 by the worker (35 issued and 1 denied, the `credential_denied` incident) and 10 probe mints by the demo (4 issued, 6 denied). The 2 simulated transients made no Keycard call. Counts come from `KEYCARD broker issued credential` and `KEYCARD broker CredentialDenied` in the worker log, plus the probe lines in the demo console. Separately, the real-LLM incident `INC-K3-001` made 3 mints (snapshot, execute, verify). It was VERIFIED with `credential_mode` `KEYCARD` in both ledger and audit, and its 47 history events had 0 JWT-scan hits.
 
 ## 1. worker_kill
 
@@ -158,4 +191,5 @@ Except `voyage_429`, demos inject the proposal (`proposal_json`, the `--proposal
 - Mongo down during `execute_action` after the fleet commit, or during `record_audit`; only the pre-execute window was exercised.
 - Mongo down longer than the fleet retry budget (expected `FAILED`, not run).
 - Worker kill before the request reaches fleet-api (expected attempt 2 `APPLIED`); the demo kills after it is in flight.
-- Temporal server crash; Keycard (all credential demos use the LOCAL-ONLY broker).
+- Temporal server crash.
+- Keycard time-to-effect of a policy-set flip (only upper bounds, see Observed run: KEYCARD mode).
