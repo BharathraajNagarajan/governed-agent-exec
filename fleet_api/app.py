@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from pymongo import MongoClient, ReturnDocument
 from pymongo.errors import DuplicateKeyError
 from gax.config import Settings, get_settings
+from gax.credentials.keycard_broker import MODE as KEYCARD_MODE, KeycardVerifier
 from gax.credentials.local_only_broker import MIN_KEY_BYTES, MODE, verify
 
 log = logging.getLogger("fleet_api")
@@ -67,10 +68,16 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def create_app(settings: Optional[Settings] = None):
+def create_app(settings: Optional[Settings] = None, verifier: Optional[KeycardVerifier] = None):
     settings = settings or get_settings()
+    keycard = settings.credential_mode == "keycard"
+    auth_mode = KEYCARD_MODE if keycard else MODE
     key = settings.local_broker_signing_key.get_secret_value()
-    if len(key.encode()) < MIN_KEY_BYTES:
+    if keycard:
+        if not settings.keycard_zone_url:
+            raise RuntimeError(f"fleet-api ({KEYCARD_MODE}) requires KEYCARD_ZONE_URL")
+        verifier = verifier or KeycardVerifier(settings.keycard_zone_url, settings.keycard_resource_prefix)
+    elif len(key.encode()) < MIN_KEY_BYTES:
         raise RuntimeError(f"fleet-api ({MODE}) requires LOCAL_BROKER_SIGNING_KEY of at least {MIN_KEY_BYTES} bytes")
     client = MongoClient(settings.mongo_uri, serverSelectionTimeoutMS=5000)
     db = client[settings.gax_db]
@@ -93,17 +100,25 @@ def create_app(settings: Optional[Settings] = None):
         client.admin.command("ping")
         if state.count_documents({}) == 0:
             seed()
-        log.warning("fleet-api started auth_mode=%s pid=%s db=%s", MODE, os.getpid(), settings.gax_db)
+        log.warning("fleet-api started auth_mode=%s pid=%s db=%s", auth_mode, os.getpid(), settings.gax_db)
         yield
         client.close()
 
-    api = FastAPI(title=f"fleet-api ({MODE})", lifespan=lifespan)
+    api = FastAPI(title=f"fleet-api ({auth_mode})", lifespan=lifespan)
 
     def authorize(authorization: Optional[str], environment: str, action: Optional[str] = None, consumer: Optional[str] = None) -> dict:
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(401, "missing bearer token")
+        token = authorization.removeprefix("Bearer ")
+        if keycard:
+            try:
+                return verifier.verify(token, action or "get_state")
+            except jwt.PyJWKClientConnectionError:
+                raise HTTPException(503, "keycard jwks unavailable")
+            except jwt.PyJWTError as e:
+                raise HTTPException(401, f"invalid token: {type(e).__name__}")
         try:
-            claims = verify(authorization.removeprefix("Bearer "), key)
+            claims = verify(token, key)
         except jwt.InvalidTokenError as e:
             raise HTTPException(401, f"invalid token: {type(e).__name__}")
         if claims.get("environment") != environment:
@@ -185,7 +200,7 @@ def create_app(settings: Optional[Settings] = None):
 
     @api.get("/healthz")
     def healthz():
-        return {"status": "ok", "auth_mode": MODE, "pid": os.getpid()}
+        return {"status": "ok", "auth_mode": auth_mode, "pid": os.getpid()}
 
     @api.get("/v1/{environment}/consumers/{consumer}")
     def get_state(environment: Environment, consumer: str, authorization: Optional[str] = Header(None)):
