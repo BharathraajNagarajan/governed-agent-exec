@@ -99,6 +99,7 @@ Evidence types:
 | 116 | The live tests mint each resource and verify the token against the zone JWKS | `test_live_mint_and_verify` (accepts its own audience, rejects another action's); ADR 0002 K2: 5 passed | live test |
 | 25 | fleet-api prevents double application | demos `fleet_5xx`, `response_lost`; `test_idempotency_dedupe`, `test_concurrent_duplicates_apply_once`, `test_commit_then_drop_applies_exactly_once` | demo, test |
 | 117 | fleet-api validates JWTs against the Keycard zone JWKS, or the local key offline | row 113; `tests/integration/test_fleet_api.py` (LOCAL-ONLY) | code, test |
+| 140 | Screenshot caption: Keycard Audit Log shows `credentials:issue` events with actor `gax-worker` for `fleet-api state`, `restart` and `pause`, each marked successful (no denial shown) | [docs/images/keycard-audit-log.png](images/keycard-audit-log.png) (8 rows, all success icons, times relative "13h"); keycard-findings §8.4 (`urn:app:gax-worker` principal and the fleet-api resource identifiers); K3 run (keycard-findings §9: the worker minted state, restart and pause tokens in KEYCARD mode) | console, K3 run |
 
 ## Design decisions I made
 
@@ -162,6 +163,7 @@ Evidence types:
 | 129 | The observed values in the matrix held in both runs unless the row says otherwise | K4 comparison of every check in [docs/evidence/keycard/](evidence/keycard/) with the LOCAL-ONLY values in the matrix: all match except `mongo_down` (`snapshot_state` attempt 4 vs 3), which the row now states. The credential rows add KEYCARD specifics (rows 43, 44) | demo, K3 run |
 | 102 | Screenshot caption: Temporal UI for `DEMO-WORKER-KILL-20260929165525` shows `execute_action` attempt 2 on the new worker (pid 25300) with lastFailure `activity StartToClose timeout` | [docs/images/temporal-worker-kill.png](images/temporal-worker-kill.png) (event 24, identity `25300@<machine>`, attempt 2, Last Failure); [docs/evidence/worker_kill.json](evidence/worker_kill.json) (`restarted_pid` 25300, `last_failure`) | demo |
 | 103 | Screenshot caption: standalone `policy_deny` rerun PASS, 7/7, 0.9 s | [docs/images/policy-deny.png](images/policy-deny.png); [docs/evidence/policy_deny.json](evidence/policy_deny.json) | demo |
+| 141 | Screenshot caption: `gax-forbid-restart` in `gax-zone-policies` matches `principal.identifier` `"urn:app:gax-worker"` and `resource.identifier` `"urn:gax:fleet-api:restart"`; set-level Run test gax-worker × fleet-api restart = Deny, determining policy `<set-id>::policy0`; set shown as Candidate | [docs/images/keycard-forbid-deny.png](images/keycard-forbid-deny.png); keycard-findings §8.4 (same forbid, Run test Deny with `<set-id>::policy0`); K3 run: [docs/evidence/keycard/credential_denied.json](evidence/keycard/credential_denied.json) (ledger error names `gax-forbid-restart` in `gax-zone-policies`, row 115) | console, K3 run |
 
 ## Key engineering findings
 

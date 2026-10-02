@@ -80,6 +80,10 @@ Temporal history is the authority on execution. MongoDB holds retrieval data, do
 | Credential broker (Keycard; LOCAL-ONLY offline mode) | Keycard token per activity attempt, one resource per action, never stored in workflow state | Acting after access is revoked; credentials leaking into history, logs or the LLM | demo `credential_denied` in KEYCARD mode (a real policy-set flip; the `access_denied` error names policy `gax-forbid-restart`); 5 live Keycard tests (mint and JWKS verification per resource); demo `credential_transient`; `test_staging_restart_verified_once_and_no_credential_in_history`, `test_revoke_denies_and_restore_allows` |
 | fleet-api | Simulated target system with `Idempotency-Key`, JWT validation (Keycard zone JWKS, or the local key offline) and fault injection | Double-applying a non-idempotent action on retry or after a lost response | demos `fleet_5xx`, `response_lost`; `test_idempotency_dedupe`, `test_concurrent_duplicates_apply_once`, `test_commit_then_drop_applies_exactly_once` |
 
+![Keycard Audit Log: credentials:issue events by gax-worker for fleet-api state, restart and pause](docs/images/keycard-audit-log.png)
+
+*Keycard console screenshot, Audit Log: `credentials:issue` events with actor `gax-worker` for the `fleet-api state`, `fleet-api restart` and `fleet-api pause` resources, each marked successful.*
+
 ## Design decisions I made
 
 - **Two authorization layers, not a credential issuer alone.** Versioned policy code decides on action, environment and parameters; a per-attempt credential decides who may call fleet-api at all. Rejected: relying on the credential issuer only, because it never sees the proposal and cannot express "`scale_consumer` only for 1..10 replicas" or "DENY in prod". [ADR 0001](docs/decisions/0001-authorization-layering.md)
@@ -117,6 +121,10 @@ The observed values below held in both runs unless the row says otherwise.
 | `voyage_429` | Voyage free-tier rate limit exhausted | Client backoff 2/4/8 s plus a sliding-window limiter | real 429s, then embed and rerank 200, run VERIFIED |
 | `mongo_down` | atlas-local stopped after approval | Mongo errors become compact retryable `MongoUnavailable` | `snapshot_state` retried (attempt 3 LOCAL-ONLY, 4 KEYCARD), then VERIFIED with an audit record |
 | `duplicate_start` | Same incident id started while running and after completion | `ALLOW_DUPLICATE_FAILED_ONLY` rejects both | exit 2 twice, one run, one state change |
+
+![Keycard console: gax-forbid-restart Cedar forbid in gax-zone-policies, set-level Run test gax-worker x fleet-api restart = Deny](docs/images/keycard-forbid-deny.png)
+
+*Keycard console screenshot, the forbid behind `credential_denied`: the `gax-forbid-restart` Cedar rule in the `gax-zone-policies` set matches `principal.identifier` `"urn:app:gax-worker"` and `resource.identifier` `"urn:gax:fleet-api:restart"`; the set-level Run test for gax-worker × fleet-api restart returns Deny, determining policy `<set-id>::policy0`. The set shows Candidate status here (not active); the demo activates it.*
 
 ![Temporal UI: execute_action attempt 2 on the new worker with lastFailure activity StartToClose timeout](docs/images/temporal-worker-kill.png)
 
